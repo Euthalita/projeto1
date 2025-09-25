@@ -11,4 +11,3 @@ import com.tcc.face_detection.model.Aluno;
 public interface AlunoRepository extends JpaRepository<Aluno, Long> {
     Optional<Aluno> findByMatricula(String matricula);
 }
-

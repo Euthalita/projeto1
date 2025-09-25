@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 public class Aluno {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false, unique = true)
     private Long id;
 
     @Column(unique = true, nullable = false)

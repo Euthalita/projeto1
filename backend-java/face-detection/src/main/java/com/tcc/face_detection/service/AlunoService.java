@@ -1,17 +1,16 @@
 package com.tcc.face_detection.service;
 
-import com.tcc.face_detection.dto.CadastroFotoDTO;
-
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.tcc.face_detection.dto.CadastroFotoDTO;
 import com.tcc.face_detection.model.Aluno;
 import com.tcc.face_detection.repository.AlunoRepository;
 
@@ -19,7 +18,7 @@ import com.tcc.face_detection.repository.AlunoRepository;
 public class AlunoService {
 
     private final AlunoRepository alunoRepository;
-    private static final String UPLOAD_DIR = "uploads/";
+    private static final String UPLOAD_DIR = "resources/uploads/";
 
     public AlunoService(AlunoRepository alunoRepository) {
         this.alunoRepository = alunoRepository;
