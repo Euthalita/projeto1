@@ -1,23 +1,25 @@
 package com.tcc.face_detection.model;
-
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "alunos")
-public class Aluno {
+@Table(name = "alunos_cadastro")
+public class AlunoCadastro {
 
     @Id
-    @Column(nullable = false, unique = true)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
     private String matricula;
 
-    @Column(nullable = false)
-    private String senha;
     private String nome;
     private String email;
-    private String foto; // caminho do arquivo salvo no servidor
+    private String foto;
 
     public Long getId() {
         return id;
@@ -33,14 +35,6 @@ public class Aluno {
 
     public void setMatricula(String matricula) {
         this.matricula = matricula;
-    }
-
-    public String getSenha() {
-        return senha;
-    }
-
-    public void setSenha(String senha) {
-        this.senha = senha;
     }
 
     public String getNome() {

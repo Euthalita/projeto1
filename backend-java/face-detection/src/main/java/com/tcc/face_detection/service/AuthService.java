@@ -1,33 +1,30 @@
 package com.tcc.face_detection.service;
 
-import com.tcc.face_detection.dto.LoginDTO;
-import com.tcc.face_detection.model.Aluno;
-import com.tcc.face_detection.repository.AlunoRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
+import com.tcc.face_detection.dto.LoginDTO;
+import com.tcc.face_detection.model.AlunoSiga;
+import com.tcc.face_detection.repository.AlunoSigaRepository;
 
 @Service
 public class AuthService {
 
-    private final AlunoRepository alunoRepository;
+    private final AlunoSigaRepository alunoSigaRepository;
 
-    public AuthService(AlunoRepository alunoRepository) {
-        this.alunoRepository = alunoRepository;
+    public AuthService(AlunoSigaRepository alunoSigaRepository) {
+        this.alunoSigaRepository = alunoSigaRepository;
     }
 
-    public Aluno login(LoginDTO dto) {
-        Optional<Aluno> alunoOpt = alunoRepository.findByMatricula(dto.getMatricula());
+    public AlunoSiga login(LoginDTO dto) {
+        AlunoSiga aluno = alunoSigaRepository.findByMatricula(dto.getMatricula())
+            .orElseThrow(() -> new RuntimeException("Matrícula não encontrada"));
 
-        if (alunoOpt.isEmpty()) {
-            throw new RuntimeException("Matrícula não encontrada");
-        }
-
-        Aluno aluno = alunoOpt.get();
-        if (!aluno.getSenha().equals(dto.getSenha())) {
-            throw new RuntimeException("Senha incorreta");
-        }
-
-        return aluno;
+    if (!aluno.getSenha().equals(dto.getSenha())) {
+        throw new RuntimeException("Senha incorreta");
     }
+
+    return aluno;
+}
+
+   
 }

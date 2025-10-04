@@ -10,28 +10,34 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.tcc.face_detection.dto.CadastroFotoDTO;
-import com.tcc.face_detection.model.Aluno;
-import com.tcc.face_detection.repository.AlunoRepository;
+import com.tcc.face_detection.dto.CadastroDTO;
+import com.tcc.face_detection.model.AlunoCadastro;
+import com.tcc.face_detection.repository.AlunoCadastroRepository;
+import com.tcc.face_detection.repository.AlunoSigaRepository;
 
 @Service
 public class AlunoService {
 
-    private final AlunoRepository alunoRepository;
+    private final AlunoSigaRepository alunoSigaRepository;
+    private final AlunoCadastroRepository alunoCadastroRepository;
     private static final String UPLOAD_DIR = "resources/uploads/";
 
-    public AlunoService(AlunoRepository alunoRepository) {
-        this.alunoRepository = alunoRepository;
+    public AlunoService(AlunoSigaRepository alunoSigaRepository,
+                        AlunoCadastroRepository alunoCadastroRepository) {
+        this.alunoSigaRepository = alunoSigaRepository;
+        this.alunoCadastroRepository = alunoCadastroRepository;
     }
 
-    public Aluno atualizarCadastro(String matricula, CadastroFotoDTO dto) throws IOException {
-        Optional<Aluno> alunoOpt = alunoRepository.findByMatricula(matricula);
+    public AlunoCadastro atualizarCadastro(String matricula, CadastroDTO dto) throws IOException {
+        // Verifica se a matrícula existe no SIGA
+        alunoSigaRepository.findByMatricula(matricula)
+                .orElseThrow(() -> new RuntimeException("Matrícula não encontrada no SIGA!"));
 
-        if (alunoOpt.isEmpty()) {
-            throw new RuntimeException("Matrícula não encontrada!");
-        }
+        // Busca cadastro existente ou cria novo
+        AlunoCadastro aluno = alunoCadastroRepository.findByMatricula(matricula)
+                .orElse(new AlunoCadastro());
 
-        Aluno aluno = alunoOpt.get();
+        aluno.setMatricula(matricula);
         aluno.setNome(dto.getNome());
         aluno.setEmail(dto.getEmail());
 
@@ -49,6 +55,11 @@ public class AlunoService {
             aluno.setFoto(filePath);
         }
 
-        return alunoRepository.save(aluno);
+        return alunoCadastroRepository.save(aluno);
+    }
+
+    // NOVO MÉTODO: buscar cadastro pelo número da matrícula
+    public Optional<AlunoCadastro> findByMatricula(String matricula) {
+        return alunoCadastroRepository.findByMatricula(matricula);
     }
 }

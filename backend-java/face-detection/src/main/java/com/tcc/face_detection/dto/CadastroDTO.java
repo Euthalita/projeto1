@@ -2,7 +2,7 @@ package com.tcc.face_detection.dto;
 
 import org.springframework.web.multipart.MultipartFile;
 
-public class CadastroFotoDTO {
+public class CadastroDTO {
     private String nome;
     private String email;
     private MultipartFile foto;
