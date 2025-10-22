@@ -50,7 +50,7 @@ public class CadastroController {
     /**
      * Endpoint para buscar cadastro pelo número de matrícula
      */
-    @GetMapping("/{matricula}")
+    @GetMapping("/siga/alunos/{matricula}")
     public ResponseEntity<?> buscarCadastro(@PathVariable String matricula) {
         Optional<AlunoCadastro> alunoOpt = alunoService.findByMatricula(matricula);
         return alunoOpt.map(ResponseEntity::ok)

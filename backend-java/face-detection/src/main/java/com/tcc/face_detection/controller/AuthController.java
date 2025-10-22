@@ -18,7 +18,7 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
-    @PostMapping("/login")
+    @PostMapping("/api/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
         try {
             AlunoSiga aluno = authService.login(loginDTO);
