@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState } from "react"; 
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
+import { Card } from "primereact/card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -10,26 +11,53 @@ export default function Login() {
 
   const navigate = useNavigate();
   const { loginUser } = useAuth();
+  
 
   const handleLogin = async () => {
     const ok = await loginUser(matricula, senha);
-    if (ok) navigate("/");
-    else alert("Erro ao fazer login");
+    if (ok) {
+      navigate(`/cadastro`); // redireciona para cadastro
+    } else {
+      alert("Erro ao fazer login");
+    }
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <h2 className="mb-3">Login</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
+      <Card
+        title="Acesso ao Sistema"
+        className="shadow-2xl w-full max-w-md p-6 rounded-lg bg-gray-800 text-white"
+      >
+        <div className="flex flex-col gap-4">
 
-      <InputText placeholder="Matrícula"
-        value={matricula} onChange={e => setMatricula(e.target.value)}
-        className="w-full mb-3" />
+          <span className="p-float-label">
+            <InputText
+              id="matricula"
+              value={matricula}
+              onChange={(e) => setMatricula(e.target.value)}
+              className="w-full"
+            />
+            <label htmlFor="matricula" className="text-white">Matrícula</label>
+          </span>
 
-      <InputText placeholder="Senha" type="password"
-        value={senha} onChange={e => setSenha(e.target.value)}
-        className="w-full mb-3" />
+          <span className="p-float-label">
+            <InputText
+              id="senha"
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              className="w-full"
+            />
+            <label htmlFor="senha" className="text-white">Senha</label>
+          </span>
 
-      <Button label="Entrar" className="w-full" onClick={handleLogin} />
+          <Button
+            label="Entrar"
+            className="w-full mt-2 p-button-raised p-button-primary"
+            onClick={handleLogin}
+          />
+        </div>
+      </Card>
     </div>
   );
 }

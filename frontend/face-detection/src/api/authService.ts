@@ -6,6 +6,8 @@ export interface LoginDTO {
 }
 
 export const login = async (data: LoginDTO) => {
-  const response = await api.post("/auth/api/login", data);
+  const response = await api.post("http://localhost:8080/auth/api/login", data, {
+    responseType: "text"
+  });
   return response.data;
 };

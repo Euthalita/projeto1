@@ -1,52 +1,58 @@
-import { createContext, useContext, useState } from "react";
-import { login } from "../api/authService";
+import { createContext, useContext, useState} from "react";
+import type { ReactNode } from 'react';
+import { api } from "../api/api";
 
-interface AuthContextType {
-  matricula: string | null;
+interface AuthContextProps {
+  user: string | null;
   loginUser: (matricula: string, senha: string) => Promise<boolean>;
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextProps>({} as AuthContextProps);
 
-export const AuthProvider = ({ children }: any) => {
-  const [matricula, setMatricula] = useState<string | null>(null);
+interface AuthProviderProps {
+  children: ReactNode; // tipagem correta do children
+}
 
-  const loginUser = async (matriculaInput: string, senha: string) => {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<string | null>(() => {
+    return localStorage.getItem("user") || null;
+  });
+
+  const loginUser = async (matricula: string, senha: string) => {
     try {
-      const response = await login({ matricula: matriculaInput, senha });
+      const response = await api.post(
+        "/auth/api/login",
+        { matricula, senha },
+        { responseType: "text" } // backend retorna texto
+      );
 
-      // exemplo de retorno:
-      // "Login realizado com sucesso! Matrícula: 123456"
-      const match = response.match(/Matrícula:\s*(\w+)/);
+      console.log("Resposta backend:", response.data);
 
-      if (match) {
-        setMatricula(match[1]);
+      // aqui você só tem o texto, então vamos guardar a matrícula manualmente
+      if (response.status === 200) {
+        setUser(matricula);
+        localStorage.setItem("user", matricula);
         return true;
       }
 
       return false;
-    } catch (err) {
-      console.error("Erro no login:", err);
+    } catch (err: any) {
+      console.error("Erro login:", err.response?.data || err.message);
       return false;
     }
   };
 
-  const logout = () => setMatricula(null);
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+  };
 
   return (
-    <AuthContext.Provider value={{ matricula, loginUser, logout }}>
+    <AuthContext.Provider value={{ user, loginUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error(
-      "useAuth deve ser usado dentro do <AuthProvider>. Verifique se o AuthProvider está envolvendo seu App."
-    );
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
