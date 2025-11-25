@@ -22,7 +22,7 @@ function App() {
           } 
         />
 
-        <Route path="/cadastro" element={
+        <Route path="/cadastro/:matricula" element={
             <ProtectedRoute>
               <CadastroAluno />
             </ProtectedRoute>

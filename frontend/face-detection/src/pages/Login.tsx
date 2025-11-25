@@ -16,7 +16,7 @@ export default function Login() {
   const handleLogin = async () => {
     const ok = await loginUser(matricula, senha);
     if (ok) {
-      navigate(`/cadastro`); // redireciona para cadastro
+      navigate(`/cadastro/${matricula}`); // redireciona para cadastro
     } else {
       alert("Erro ao fazer login");
     }
