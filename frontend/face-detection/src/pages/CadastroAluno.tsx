@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { useAuth } from "../context/AuthContext";
 import { atualizarCadastro, buscarCadastro } from "../api/alunoService";
 
 export default function CadastroAluno() {
-  const { user } = useAuth(); // matrícula do usuário logado
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     matricula: user || "",
@@ -16,19 +17,14 @@ export default function CadastroAluno() {
 
   const [foto, setFoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-
   const [jaCadastrado, setJaCadastrado] = useState(false);
 
   const [errors, setErrors] = useState({
-    matricula: "",
     nome: "",
     email: "",
     foto: "",
   });
 
-  // -----------------------------
-  // 1. AUTOLOAD: busca o aluno do backend ao abrir a tela
-  // -----------------------------
   useEffect(() => {
     if (!user) return;
 
@@ -37,7 +33,6 @@ export default function CadastroAluno() {
         const dados = await buscarCadastro(user);
 
         if (dados) {
-          // Se já tem nome, email e foto, então está cadastrado
           if (dados.nome && dados.email && dados.fotoUrl) {
             setJaCadastrado(true);
           }
@@ -56,9 +51,6 @@ export default function CadastroAluno() {
     loadAluno();
   }, [user]);
 
-  // -----------------------------
-  // 2. Validação individual
-  // -----------------------------
   const validateField = (field: string, value: string) => {
     let error = "";
 
@@ -79,32 +71,21 @@ export default function CadastroAluno() {
     validateField(field, value);
   };
 
-  // -----------------------------
-  // 3. Validação total antes de enviar
-  // -----------------------------
   const validateForm = () => {
     const newErrors: any = {};
 
     if (!form.nome.trim()) newErrors.nome = "O nome é obrigatório.";
-
     if (!form.email.trim()) newErrors.email = "O email é obrigatório.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       newErrors.email = "Digite um email válido.";
-
     if (!foto) newErrors.foto = "A foto é obrigatória.";
 
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
-  // -----------------------------
-  // 4. Submit final
-  // -----------------------------
   const handleSubmit = async () => {
-    if (jaCadastrado) return; // bloqueia envio se já existe
-
-    if (!validateForm()) return;
+    if (jaCadastrado) return;
 
     setLoading(true);
 
@@ -120,10 +101,7 @@ export default function CadastroAluno() {
 
       await atualizarCadastro(form.matricula, formData);
       alert("Cadastro realizado com sucesso!");
-
-      // após cadastrar, bloqueia a tela
       setJaCadastrado(true);
-
     } catch (error) {
       alert("Erro ao enviar cadastro.");
     }
@@ -131,11 +109,29 @@ export default function CadastroAluno() {
     setLoading(false);
   };
 
+  // ============================================
+  // 🔥 NOVO: Confirmação antes do envio
+  // ============================================
+  const confirmarEnvio = () => {
+    if (!validateForm()) return;
+
+    confirmDialog({
+      message:
+        "Você tem certeza que deseja enviar? Após o envio não será possível fazer alterações.",
+      header: "Confirmar envio",
+      icon: "pi pi-exclamation-triangle",
+      acceptLabel: "Sim, enviar",
+      rejectLabel: "Cancelar",
+      accept: handleSubmit,
+    });
+  };
+
   return (
     <div className="p-4 max-w-md mx-auto">
+      <ConfirmDialog />
+
       <h2 className="text-xl font-bold mb-4">Cadastro do Aluno</h2>
 
-      {/* Se já cadastrado, mostrar aviso e bloquear tudo */}
       {jaCadastrado && (
         <Message
           severity="info"
@@ -144,7 +140,6 @@ export default function CadastroAluno() {
         />
       )}
 
-      {/* Matrícula */}
       <div className="mb-3">
         <InputText
           value={form.matricula}
@@ -153,7 +148,6 @@ export default function CadastroAluno() {
         />
       </div>
 
-      {/* Nome */}
       <div className="mb-3">
         <InputText
           value={form.nome}
@@ -165,7 +159,6 @@ export default function CadastroAluno() {
         {errors.nome && <Message severity="error" text={errors.nome} />}
       </div>
 
-      {/* Email */}
       <div className="mb-3">
         <InputText
           value={form.email}
@@ -177,7 +170,6 @@ export default function CadastroAluno() {
         {errors.email && <Message severity="error" text={errors.email} />}
       </div>
 
-      {/* Foto */}
       <div className="mb-3">
         <input
           type="file"
@@ -190,9 +182,11 @@ export default function CadastroAluno() {
       </div>
 
       <Button
-        label={jaCadastrado ? "Cadastro já enviado" : loading ? "Salvando..." : "Salvar"}
+        label={
+          jaCadastrado ? "Cadastro já enviado" : loading ? "Salvando..." : "Salvar"
+        }
         className="w-full mt-3"
-        onClick={handleSubmit}
+        onClick={confirmarEnvio} // <<<<<<<<< ALTERAÇÃO AQUI
         disabled={loading || jaCadastrado}
         loading={loading}
       />

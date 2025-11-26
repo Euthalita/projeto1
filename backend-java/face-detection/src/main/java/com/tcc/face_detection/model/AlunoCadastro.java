@@ -19,7 +19,8 @@ public class AlunoCadastro {
 
     private String nome;
     private String email;
-    private String foto;
+    private String foto;  // caminho da foto salva em /uploads/fotos/
+
 
     public Long getId() {
         return id;
@@ -60,4 +61,5 @@ public class AlunoCadastro {
     public void setFoto(String foto) {
         this.foto = foto;
     }
+
 }

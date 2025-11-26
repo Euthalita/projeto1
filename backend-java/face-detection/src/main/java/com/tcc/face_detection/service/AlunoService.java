@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,7 +21,8 @@ public class AlunoService {
 
     private final AlunoSigaRepository alunoSigaRepository;
     private final AlunoCadastroRepository alunoCadastroRepository;
-    private static final String UPLOAD_DIR = "resources/uploads/";
+
+    private static final String UPLOAD_DIR = "uploads/fotos/";
 
     public AlunoService(AlunoSigaRepository alunoSigaRepository,
                         AlunoCadastroRepository alunoCadastroRepository) {
@@ -29,36 +31,47 @@ public class AlunoService {
     }
 
     public AlunoCadastro atualizarCadastro(String matricula, CadastroDTO dto) throws IOException {
-        // Verifica se a matrícula existe no SIGA
-        alunoSigaRepository.findByMatricula(matricula)
-                .orElseThrow(() -> new RuntimeException("Matrícula não encontrada no SIGA!"));
 
-        // Busca cadastro existente ou cria novo
-        AlunoCadastro aluno = alunoCadastroRepository.findByMatricula(matricula)
-                .orElse(new AlunoCadastro());
+        // Verifica matrícula no SIGA
+        alunoSigaRepository.findByMatricula(matricula)
+                .orElseThrow(() -> new RuntimeException("Matrícula não encontrada no SIGA."));
+
+        // Se já existe cadastro, NÃO permitir novo
+        Optional<AlunoCadastro> existing = alunoCadastroRepository.findByMatricula(matricula);
+
+        if (existing.isPresent()) {
+            throw new RuntimeException("Aluno já possui cadastro. Não é permitido cadastrar novamente.");
+        }
+
+        // Cria novo objeto
+        AlunoCadastro aluno = new AlunoCadastro();
 
         aluno.setMatricula(matricula);
         aluno.setNome(dto.getNome());
         aluno.setEmail(dto.getEmail());
 
-        MultipartFile file = dto.getFoto();
-        if (file != null && !file.isEmpty()) {
-            File uploadDir = new File(UPLOAD_DIR);
-            if (!uploadDir.exists()) {
-                uploadDir.mkdirs();
-            }
+        // =============== SALVAR FOTO ==================
+        MultipartFile foto = dto.getFoto();
+        if (foto != null && !foto.isEmpty()) {
 
-            String filePath = UPLOAD_DIR + file.getOriginalFilename();
-            Path path = Paths.get(filePath);
-            Files.write(path, file.getBytes());
+            // cria diretório se não existir
+            File dir = new File(UPLOAD_DIR);
+            if (!dir.exists()) dir.mkdirs();
 
-            aluno.setFoto(filePath);
+            // gera nome único
+            String fileName = UUID.randomUUID() + "_" + foto.getOriginalFilename();
+            Path path = Paths.get(UPLOAD_DIR + fileName);
+
+            // salva arquivo
+            Files.write(path, foto.getBytes());
+
+            // guarda caminho no banco
+            aluno.setFoto(path.toString());
         }
 
         return alunoCadastroRepository.save(aluno);
     }
 
-    // NOVO MÉTODO: buscar cadastro pelo número da matrícula
     public Optional<AlunoCadastro> findByMatricula(String matricula) {
         return alunoCadastroRepository.findByMatricula(matricula);
     }
