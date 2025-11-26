@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 
@@ -32,18 +33,6 @@ public class CadastroController {
         this.alunoService = alunoService;
     }
 
-    private void validarFoto3x4(MultipartFile foto) throws Exception {
-        BufferedImage img = ImageIO.read(foto.getInputStream());
-        int w = img.getWidth();
-        int h = img.getHeight();
-
-        double ratio = (double) w / h;
-        double ideal = 3.0 / 4.0;
-
-        if (ratio < ideal * 0.9 || ratio > ideal * 1.1) {
-            throw new Exception("A foto deve estar no formato 3x4.");
-        }
-    }
     private void validarRosto(MultipartFile foto) throws Exception {
 
         byte[] bytes = foto.getBytes();
@@ -52,7 +41,7 @@ public class CadastroController {
             throw new Exception("Não foi possível ler a imagem enviada.");
         }
 
-        String resourcePath = "/models/haarcascade_frontalface_default.xml";
+        String resourcePath = "/resources/models/haarcascade_frontalface_default.xml";
 
         InputStream is = getClass().getResourceAsStream(resourcePath);
         if (is == null) {
@@ -93,9 +82,7 @@ public class CadastroController {
 
         try {
             if (foto != null && !foto.isEmpty()) {
-                validarFoto3x4(foto);
                 validarRosto(foto);
-
                 cadastroDTO.setFoto(foto);
             }
 
@@ -103,7 +90,10 @@ public class CadastroController {
             return ResponseEntity.ok(aluno);
 
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity
+                .badRequest()
+                .body(Map.of("message", e.getMessage()));
+
         }
     }
 

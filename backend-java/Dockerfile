@@ -16,4 +16,4 @@ COPY --from=build /app/target/*.jar app.jar
 # Porta exposta do backend
 EXPOSE 8080
 
-CMD ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

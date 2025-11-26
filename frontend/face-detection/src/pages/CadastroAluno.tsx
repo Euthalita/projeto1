@@ -16,6 +16,8 @@ export default function CadastroAluno() {
   });
 
   const [foto, setFoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [jaCadastrado, setJaCadastrado] = useState(false);
 
@@ -23,6 +25,7 @@ export default function CadastroAluno() {
     nome: "",
     email: "",
     foto: "",
+    backend: "",
   });
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export default function CadastroAluno() {
         error = "Digite um email válido.";
     }
 
-    setErrors((prev) => ({ ...prev, [field]: error }));
+    setErrors((prev) => ({ ...prev, [field]: error, backend: "" }));
   };
 
   const handleChange = (e: any, field: string) => {
@@ -78,40 +81,71 @@ export default function CadastroAluno() {
     if (!form.email.trim()) newErrors.email = "O email é obrigatório.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       newErrors.email = "Digite um email válido.";
+
     if (!foto) newErrors.foto = "A foto é obrigatória.";
 
-    setErrors(newErrors);
+    setErrors((prev) => ({ ...prev, ...newErrors, backend: "" }));
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
-    if (jaCadastrado) return;
+  const handleFoto = (file: File | null) => {
+    setFoto(file);
 
-    setLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append(
-        "cadastro",
-        new Blob([JSON.stringify({ nome: form.nome, email: form.email })], {
-          type: "application/json",
-        })
-      );
-      formData.append("foto", foto as File);
-
-      await atualizarCadastro(form.matricula, formData);
-      alert("Cadastro realizado com sucesso!");
-      setJaCadastrado(true);
-    } catch (error) {
-      alert("Erro ao enviar cadastro.");
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreview(url);
     }
 
-    setLoading(false);
+    setErrors((prev) => ({ ...prev, foto: "", backend: "" }));
   };
 
-  // ============================================
-  // 🔥 NOVO: Confirmação antes do envio
-  // ============================================
+  const handleSubmit = async () => {
+  if (jaCadastrado) return;
+
+  setLoading(true);
+
+  try {
+    const formData = new FormData();
+    formData.append(
+      "cadastro",
+      new Blob([JSON.stringify({ nome: form.nome, email: form.email })], {
+        type: "application/json",
+      })
+    );
+    formData.append("foto", foto as File);
+
+    await atualizarCadastro(form.matricula, formData);
+
+    alert("Cadastro realizado com sucesso!");
+    setJaCadastrado(true);
+
+  } catch (error: any) {
+    console.error("ERRO AO ENVIAR:", error);
+
+
+      let backendMsg = "Erro desconhecido ao enviar cadastro.";
+
+      if (error?.response?.data) {
+        const data = error.response.data;
+
+        if (typeof data === "string") {
+                backendMsg = data;
+        } else if (typeof data === "object") {
+          backendMsg = data.message || JSON.stringify(data);
+      }
+      } else if (error?.message) {
+        backendMsg = error.message;
+      }
+
+alert(backendMsg);
+
+  }
+
+  setLoading(false);
+
+};
+
+
   const confirmarEnvio = () => {
     if (!validateForm()) return;
 
@@ -136,6 +170,14 @@ export default function CadastroAluno() {
         <Message
           severity="info"
           text="Seu cadastro já foi enviado e não pode ser modificado."
+          className="w-full mb-4"
+        />
+      )}
+
+      {errors.backend && (
+        <Message
+          severity="error"
+          text={errors.backend}
           className="w-full mb-4"
         />
       )}
@@ -174,19 +216,31 @@ export default function CadastroAluno() {
         <input
           type="file"
           accept="image/*"
-          onChange={(e) => setFoto(e.target.files?.[0] || null)}
+          onChange={(e) => handleFoto(e.target.files?.[0] || null)}
           disabled={jaCadastrado}
           className={`${errors.foto && "p-invalid"}`}
         />
         {errors.foto && <Message severity="error" text={errors.foto} />}
+
+        {preview && (
+          <img
+            src={preview}
+            alt="Preview"
+            className="mt-3 w-32 h-44 border rounded object-cover"
+          />
+        )}
       </div>
 
       <Button
         label={
-          jaCadastrado ? "Cadastro já enviado" : loading ? "Salvando..." : "Salvar"
+          jaCadastrado
+            ? "Cadastro já enviado"
+            : loading
+            ? "Salvando..."
+            : "Salvar"
         }
         className="w-full mt-3"
-        onClick={confirmarEnvio} // <<<<<<<<< ALTERAÇÃO AQUI
+        onClick={confirmarEnvio}
         disabled={loading || jaCadastrado}
         loading={loading}
       />
