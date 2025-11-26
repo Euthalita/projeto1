@@ -32,9 +32,6 @@ public class CadastroController {
         this.alunoService = alunoService;
     }
 
-    // ======================================================
-    // 📌 1) Validação Foto 3x4
-    // ======================================================
     private void validarFoto3x4(MultipartFile foto) throws Exception {
         BufferedImage img = ImageIO.read(foto.getInputStream());
         int w = img.getWidth();
@@ -47,21 +44,14 @@ public class CadastroController {
             throw new Exception("A foto deve estar no formato 3x4.");
         }
     }
-
-    // ======================================================
-    // 📌 2) Validação — rosto humano
-    // ======================================================
     private void validarRosto(MultipartFile foto) throws Exception {
 
-        // 1) Decodifica bytes em Mat
         byte[] bytes = foto.getBytes();
         Mat img = opencv_imgcodecs.imdecode(new Mat(bytes), opencv_imgcodecs.IMREAD_COLOR);
         if (img == null || img.empty()) {
             throw new Exception("Não foi possível ler a imagem enviada.");
         }
 
-        // 2) Carrega o cascade do classpath
-        // --- CORRETO --- SEM /resources
         String resourcePath = "/models/haarcascade_frontalface_default.xml";
 
         InputStream is = getClass().getResourceAsStream(resourcePath);
@@ -103,8 +93,6 @@ public class CadastroController {
 
         try {
             if (foto != null && !foto.isEmpty()) {
-
-                // Validações obrigatórias
                 validarFoto3x4(foto);
                 validarRosto(foto);
 
