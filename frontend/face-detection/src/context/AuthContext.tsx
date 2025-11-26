@@ -11,7 +11,7 @@ interface AuthContextProps {
 const AuthContext = createContext<AuthContextProps>({} as AuthContextProps);
 
 interface AuthProviderProps {
-  children: ReactNode; // tipagem correta do children
+  children: ReactNode; 
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -24,12 +24,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await api.post(
         "/auth/api/login",
         { matricula, senha },
-        { responseType: "text" } // backend retorna texto
+        { responseType: "text" } 
       );
 
       console.log("Resposta backend:", response.data);
 
-      // aqui você só tem o texto, então vamos guardar a matrícula manualmente
       if (response.status === 200) {
         setUser(matricula);
         localStorage.setItem("user", matricula);

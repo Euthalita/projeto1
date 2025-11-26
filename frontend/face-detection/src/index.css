@@ -1,4 +1,7 @@
-/* Adicione esse estilo no seu CSS global ou no arquivo de estilos */
-.card-login {
-  min-height: 300px; /* Altura mínima do Card */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
 }

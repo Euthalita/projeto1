@@ -9,48 +9,69 @@ import TurmaForm from "./pages/TurmaForm";
 
 function App() {
   return (
-    <>
-      <Navbar />
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <>
+              <Navbar />
+              <h2 className="text-white p-6">Home</h2>
+            </>
+          </ProtectedRoute>
+        }
+      />
 
-      <Routes>
-        <Route path="/login" element={<Login />} />
-
-        <Route path="/" element={
-            <ProtectedRoute>
-              <h2>Home</h2>
-            </ProtectedRoute>
-          } 
-        />
-
-        <Route path="/cadastro/:matricula" element={
-            <ProtectedRoute>
+      <Route
+        path="/cadastro/:matricula"
+        element={
+          <ProtectedRoute>
+            <>
+              <Navbar />
               <CadastroAluno />
-            </ProtectedRoute>
-          } 
-        />
+            </>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route path="/turmas" element={
-            <ProtectedRoute>
+      <Route
+        path="/turmas"
+        element={
+          <ProtectedRoute>
+            <>
+              <Navbar />
               <TurmasList />
-            </ProtectedRoute>
-          } 
-        />
+            </>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route path="/turmas/nova" element={
-            <ProtectedRoute>
+      <Route
+        path="/turmas/nova"
+        element={
+          <ProtectedRoute>
+            <>
+              <Navbar />
               <TurmaForm />
-            </ProtectedRoute>
-          } 
-        />
+            </>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route path="/turmas/editar/:id" element={
-            <ProtectedRoute>
+      <Route
+        path="/turmas/editar/:id"
+        element={
+          <ProtectedRoute>
+            <>
+              <Navbar />
               <TurmaForm />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
-    </>
+            </>
+          </ProtectedRoute>
+        }
+      />
+
+    </Routes>
   );
 }
 

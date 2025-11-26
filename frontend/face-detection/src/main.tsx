@@ -4,6 +4,10 @@ import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
+// Tailwind + estilos globais
+import "./index.css";
+
+// PrimeReact (somente uma vez!)
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";

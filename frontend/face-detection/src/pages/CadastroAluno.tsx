@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
@@ -68,7 +68,7 @@ export default function CadastroAluno() {
     setErrors((prev) => ({ ...prev, [field]: error, backend: "" }));
   };
 
-  const handleChange = (e: any, field: string) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>, field: string) => {
     const value = e.target.value;
     setForm((prev) => ({ ...prev, [field]: value }));
     validateField(field, value);
@@ -100,28 +100,27 @@ export default function CadastroAluno() {
   };
 
   const handleSubmit = async () => {
-  if (jaCadastrado) return;
+    if (jaCadastrado) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const formData = new FormData();
-    formData.append(
-      "cadastro",
-      new Blob([JSON.stringify({ nome: form.nome, email: form.email })], {
-        type: "application/json",
-      })
-    );
-    formData.append("foto", foto as File);
+    try {
+      const formData = new FormData();
+      formData.append(
+        "cadastro",
+        new Blob([JSON.stringify({ nome: form.nome, email: form.email })], {
+          type: "application/json",
+        })
+      );
+      formData.append("foto", foto as File);
 
-    await atualizarCadastro(form.matricula, formData);
+      await atualizarCadastro(form.matricula, formData);
 
-    alert("Cadastro realizado com sucesso!");
-    setJaCadastrado(true);
+      alert("Cadastro realizado com sucesso!");
+      setJaCadastrado(true);
 
-  } catch (error: any) {
-    console.error("ERRO AO ENVIAR:", error);
-
+    } catch (error: any) {
+      console.error("ERRO AO ENVIAR:", error);
 
       let backendMsg = "Erro desconhecido ao enviar cadastro.";
 
@@ -129,22 +128,19 @@ export default function CadastroAluno() {
         const data = error.response.data;
 
         if (typeof data === "string") {
-                backendMsg = data;
+          backendMsg = data;
         } else if (typeof data === "object") {
           backendMsg = data.message || JSON.stringify(data);
-      }
+        }
       } else if (error?.message) {
         backendMsg = error.message;
       }
 
-alert(backendMsg);
+      alert(backendMsg);
+    }
 
-  }
-
-  setLoading(false);
-
-};
-
+    setLoading(false);
+  };
 
   const confirmarEnvio = () => {
     if (!validateForm()) return;
@@ -161,89 +157,120 @@ alert(backendMsg);
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <ConfirmDialog />
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#111827",
+        padding: "16px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <ConfirmDialog />
+        <div
+          style={{
+            background: "#1f2937",
+            color: "#fff",
+            padding: "1.25rem",
+            borderRadius: 12,
+            boxShadow:
+              "0 10px 20px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2)",
+          }}
+        >
+          <h2 className="text-2xl font-bold mb-4 text-center">Cadastro do Aluno</h2>
 
-      <h2 className="text-xl font-bold mb-4">Cadastro do Aluno</h2>
+          {jaCadastrado && (
+            <Message
+              severity="info"
+              text="Seu cadastro já foi enviado e não pode ser modificado."
+              className="w-full mb-4"
+            />
+          )}
 
-      {jaCadastrado && (
-        <Message
-          severity="info"
-          text="Seu cadastro já foi enviado e não pode ser modificado."
-          className="w-full mb-4"
-        />
-      )}
+          {errors.backend && (
+            <Message
+              severity="error"
+              text={errors.backend}
+              className="w-full mb-4"
+            />
+          )}
 
-      {errors.backend && (
-        <Message
-          severity="error"
-          text={errors.backend}
-          className="w-full mb-4"
-        />
-      )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <label htmlFor="matricula" style={{ color: "#fff", fontSize: 14 }}>
+              Matrícula
+            </label>
+            <InputText
+              id="matricula"
+              value={form.matricula}
+              disabled
+              style={{ width: "100%" }}
+            />
 
-      <div className="mb-3">
-        <InputText
-          value={form.matricula}
-          disabled
-          className="w-full bg-gray-200 text-gray-700"
-        />
+            <label htmlFor="nome" style={{ color: "#fff", fontSize: 14 }}>
+              Nome
+            </label>
+            <InputText
+              id="nome"
+              value={form.nome}
+              onChange={(e) => handleChange(e, "nome")}
+              disabled={jaCadastrado}
+              style={{ width: "100%" }}
+            />
+            {errors.nome && <Message severity="error" text={errors.nome} />}
+
+            <label htmlFor="email" style={{ color: "#fff", fontSize: 14 }}>
+              Email
+            </label>
+            <InputText
+              id="email"
+              value={form.email}
+              onChange={(e) => handleChange(e, "email")}
+              disabled={jaCadastrado}
+              style={{ width: "100%" }}
+            />
+            {errors.email && <Message severity="error" text={errors.email} />}
+
+            <div>
+              <label htmlFor="foto" style={{ color: "#fff", fontSize: 14 }}>
+                Foto
+              </label>
+              <input
+                id="foto"
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFoto(e.target.files?.[0] || null)}
+                disabled={jaCadastrado}
+                style={{ width: "100%" }}
+              />
+              {errors.foto && <Message severity="error" text={errors.foto} />}
+              {preview && (
+                <img
+                  src={preview}
+                  alt="Preview"
+                  style={{
+                    marginTop: "12px",
+                    width: "120px",
+                    height: "160px",
+                    borderRadius: "8px",
+                    objectFit: "cover",
+                    margin: "0 auto",
+                  }}
+                />
+              )}
+            </div>
+
+            <Button
+              label={jaCadastrado ? "Cadastro já enviado" : loading ? "Salvando..." : "Salvar"}
+              onClick={confirmarEnvio}
+              style={{ width: "100%", marginTop: "12px" }}
+              disabled={loading || jaCadastrado}
+              loading={loading}
+            />
+          </div>
+        </div>
       </div>
-
-      <div className="mb-3">
-        <InputText
-          value={form.nome}
-          placeholder="Nome"
-          onChange={(e) => handleChange(e, "nome")}
-          disabled={jaCadastrado}
-          className={`w-full ${errors.nome && "p-invalid"}`}
-        />
-        {errors.nome && <Message severity="error" text={errors.nome} />}
-      </div>
-
-      <div className="mb-3">
-        <InputText
-          value={form.email}
-          placeholder="Email"
-          onChange={(e) => handleChange(e, "email")}
-          disabled={jaCadastrado}
-          className={`w-full ${errors.email && "p-invalid"}`}
-        />
-        {errors.email && <Message severity="error" text={errors.email} />}
-      </div>
-
-      <div className="mb-3">
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => handleFoto(e.target.files?.[0] || null)}
-          disabled={jaCadastrado}
-          className={`${errors.foto && "p-invalid"}`}
-        />
-        {errors.foto && <Message severity="error" text={errors.foto} />}
-
-        {preview && (
-          <img
-            src={preview}
-            alt="Preview"
-            className="mt-3 w-32 h-44 border rounded object-cover"
-          />
-        )}
-      </div>
-
-      <Button
-        label={
-          jaCadastrado
-            ? "Cadastro já enviado"
-            : loading
-            ? "Salvando..."
-            : "Salvar"
-        }
-        className="w-full mt-3"
-        onClick={confirmarEnvio}
-        disabled={loading || jaCadastrado}
-        loading={loading}
-      />
     </div>
   );
 }
