@@ -1,4 +1,3 @@
-# ---- Etapa 1: Build do frontend ----
 FROM node:20-alpine AS build
 
 # Criar diretório da aplicação

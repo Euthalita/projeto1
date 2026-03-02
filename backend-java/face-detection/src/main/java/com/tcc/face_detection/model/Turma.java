@@ -1,6 +1,15 @@
 package com.tcc.face_detection.model;
 
-import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "turmas")
@@ -15,7 +24,8 @@ public class Turma {
     private String professor;
     private String semestre;   // 2025/1
     private String sala;       
-    private String horario;    // ex: 19h00 - 21h00
+    @OneToMany(mappedBy = "turma", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<HorarioCaptura> horariosCaptura = new ArrayList<>();
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -35,6 +45,6 @@ public class Turma {
     public String getSala() { return sala; }
     public void setSala(String sala) { this.sala = sala; }
 
-    public String getHorario() { return horario; }
-    public void setHorario(String horario) { this.horario = horario; }
+    public List<HorarioCaptura> getHorariosCaptura() { return horariosCaptura; }
+    public void setHorariosCaptura(List<HorarioCaptura> horariosCaptura) { this.horariosCaptura = horariosCaptura; }
 }

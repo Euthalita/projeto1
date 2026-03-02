@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: tcc-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tcc
+      MYSQL_USER: tccuser
+      MYSQL_PASSWORD: tccpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - tcc-network
+
+  backend:
+    build: ./backend
+    container_name: tcc-backend
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    networks:
+      - tcc-network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/tcc
+      SPRING_DATASOURCE_USERNAME: tccuser
+      SPRING_DATASOURCE_PASSWORD: tccpass
+
+  frontend:
+    build: ./frontend
+    container_name: tcc-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - tcc-network
+
+networks:
+  tcc-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
