@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
@@ -6,271 +6,396 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { useAuth } from "../context/AuthContext";
 import { atualizarCadastro, buscarCadastro } from "../api/alunoService";
 
+import {
+  FaceDetector,
+  FilesetResolver
+} from "@mediapipe/tasks-vision";
+
 export default function CadastroAluno() {
+
   const { user } = useAuth();
 
-  const [form, setForm] = useState({
-    matricula: user || "",
-    nome: "",
-    email: "",
-  });
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const [detector, setDetector] = useState<FaceDetector | null>(null);
+  const [cameraAtiva, setCameraAtiva] = useState(false);
 
   const [foto, setFoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [jaCadastrado, setJaCadastrado] = useState(false);
+  const [erroFace, setErroFace] = useState("");
+
+  const [form, setForm] = useState({
+    matricula: user || "",
+    nome: "",
+    email: ""
+  });
 
   const [errors, setErrors] = useState({
     nome: "",
     email: "",
-    foto: "",
-    backend: "",
+    foto: ""
   });
 
   useEffect(() => {
-    if (!user) return;
+    iniciarMediaPipe();
+  }, []);
 
-    const loadAluno = async () => {
-      try {
-        const dados = await buscarCadastro(user);
+  async function iniciarMediaPipe() {
 
-        if (dados) {
-          if (dados.nome && dados.email && dados.fotoUrl) {
-            setJaCadastrado(true);
-          }
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+    );
 
-          setForm({
-            matricula: user,
-            nome: dados.nome || "",
-            email: dados.email || "",
-          });
+    const faceDetector = await FaceDetector.createFromOptions(
+      vision,
+      {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
         }
-      } catch (err) {
-        console.error("Erro ao buscar aluno:", err);
       }
-    };
+    );
 
-    loadAluno();
-  }, [user]);
+    setDetector(faceDetector);
+  }
 
-  const validateField = (field: string, value: string) => {
-    let error = "";
+  function validarCampo(campo: string, valor: string) {
 
-    if (field === "nome" && !value.trim()) error = "O nome é obrigatório.";
+    let erro = "";
 
-    if (field === "email") {
-      if (!value.trim()) error = "O email é obrigatório.";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-        error = "Digite um email válido.";
+    if (campo === "nome" && !valor.trim())
+      erro = "Nome é obrigatório.";
+
+    if (campo === "email") {
+
+      if (!valor.trim())
+        erro = "Email é obrigatório.";
+
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor))
+        erro = "Digite um email válido.";
     }
 
-    setErrors((prev) => ({ ...prev, [field]: error, backend: "" }));
-  };
+    setErrors(prev => ({
+      ...prev,
+      [campo]: erro
+    }));
+  }
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>, field: string) => {
-    const value = e.target.value;
-    setForm((prev) => ({ ...prev, [field]: value }));
-    validateField(field, value);
-  };
+  function handleChange(e: ChangeEvent<HTMLInputElement>, campo: string) {
 
-  const validateForm = () => {
-    const newErrors: any = {};
+    const valor = e.target.value;
 
-    if (!form.nome.trim()) newErrors.nome = "O nome é obrigatório.";
-    if (!form.email.trim()) newErrors.email = "O email é obrigatório.";
+    setForm(prev => ({
+      ...prev,
+      [campo]: valor
+    }));
+
+    validarCampo(campo, valor);
+  }
+
+  function validarFormulario() {
+
+    const novosErros: any = {};
+
+    if (!form.nome.trim())
+      novosErros.nome = "Nome é obrigatório.";
+
+    if (!form.email.trim())
+      novosErros.email = "Email é obrigatório.";
+
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-      newErrors.email = "Digite um email válido.";
+      novosErros.email = "Digite um email válido.";
 
-    if (!foto) newErrors.foto = "A foto é obrigatória.";
+    if (!foto)
+      novosErros.foto = "Envie uma foto.";
 
-    setErrors((prev) => ({ ...prev, ...newErrors, backend: "" }));
-    return Object.keys(newErrors).length === 0;
-  };
+    setErrors(prev => ({
+      ...prev,
+      ...novosErros
+    }));
 
-  const handleFoto = (file: File | null) => {
-    setFoto(file);
+    return Object.keys(novosErros).length === 0;
+  }
 
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreview(url);
+  async function validarImagem(file: File) {
+
+    if (!detector) return false;
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    await img.decode();
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return false;
+
+    ctx.drawImage(img, 0, 0);
+
+    const result = detector.detect(canvas);
+
+    if (!result.detections || result.detections.length === 0) {
+
+      setErroFace("Nenhum rosto detectado.");
+      return false;
     }
 
-    setErrors((prev) => ({ ...prev, foto: "", backend: "" }));
-  };
+    if (result.detections.length > 1) {
 
-  const handleSubmit = async () => {
-    if (jaCadastrado) return;
+      setErroFace("Mais de um rosto detectado.");
+      return false;
+    }
+
+    setErroFace("");
+    return true;
+  }
+
+  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
+
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const valido = await validarImagem(file);
+
+    if (!valido) return;
+
+    setFoto(file);
+    setPreview(URL.createObjectURL(file));
+
+    setErrors(prev => ({
+      ...prev,
+      foto: ""
+    }));
+  }
+
+  async function iniciarCamera() {
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true
+    });
+
+    if (videoRef.current) {
+
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    }
+
+    setCameraAtiva(true);
+  }
+
+  async function capturarFoto() {
+
+    if (!videoRef.current || !canvasRef.current || !detector)
+      return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0);
+
+    const result = detector.detect(canvas);
+
+    if (!result.detections || result.detections.length === 0) {
+
+      setErroFace("Nenhum rosto detectado.");
+      return;
+    }
+
+    if (result.detections.length > 1) {
+
+      setErroFace("Mais de um rosto detectado.");
+      return;
+    }
+
+    setErroFace("");
+
+    canvas.toBlob(blob => {
+
+      if (!blob) return;
+
+      const file = new File([blob], "foto_camera.jpg", {
+        type: "image/jpeg"
+      });
+
+      setFoto(file);
+      setPreview(URL.createObjectURL(blob));
+
+      setErrors(prev => ({
+        ...prev,
+        foto: ""
+      }));
+
+    }, "image/jpeg");
+  }
+
+  function confirmarEnvio() {
+
+    if (!validarFormulario()) return;
+
+    confirmDialog({
+      message: "Deseja enviar seu cadastro?",
+      header: "Confirmar envio",
+      icon: "pi pi-exclamation-triangle",
+      acceptLabel: "Enviar",
+      rejectLabel: "Cancelar",
+      accept: enviarCadastro
+    });
+  }
+
+  async function enviarCadastro() {
+
+    if (!foto) return;
 
     setLoading(true);
 
     try {
+
       const formData = new FormData();
+
       formData.append(
         "cadastro",
-        new Blob([JSON.stringify({ nome: form.nome, email: form.email })], {
-          type: "application/json",
-        })
+        new Blob(
+          [JSON.stringify({
+            nome: form.nome,
+            email: form.email
+          })],
+          { type: "application/json" }
+        )
       );
-      formData.append("foto", foto as File);
+
+      formData.append("foto", foto);
 
       await atualizarCadastro(form.matricula, formData);
 
       alert("Cadastro realizado com sucesso!");
-      setJaCadastrado(true);
 
-    } catch (error: any) {
-      console.error("ERRO AO ENVIAR:", error);
+    } catch (error) {
 
-      let backendMsg = "Erro desconhecido ao enviar cadastro.";
+      console.error(error);
+      alert("Erro ao enviar cadastro.");
 
-      if (error?.response?.data) {
-        const data = error.response.data;
-
-        if (typeof data === "string") {
-          backendMsg = data;
-        } else if (typeof data === "object") {
-          backendMsg = data.message || JSON.stringify(data);
-        }
-      } else if (error?.message) {
-        backendMsg = error.message;
-      }
-
-      alert(backendMsg);
     }
 
     setLoading(false);
-  };
-
-  const confirmarEnvio = () => {
-    if (!validateForm()) return;
-
-    confirmDialog({
-      message:
-        "Você tem certeza que deseja enviar? Após o envio não será possível fazer alterações.",
-      header: "Confirmar envio",
-      icon: "pi pi-exclamation-triangle",
-      acceptLabel: "Sim, enviar",
-      rejectLabel: "Cancelar",
-      accept: handleSubmit,
-    });
-  };
+  }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#111827",
-        padding: "16px",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 420 }}>
-        <ConfirmDialog />
-        <div
-          style={{
-            background: "#1f2937",
-            color: "#fff",
-            padding: "1.25rem",
-            borderRadius: 12,
-            boxShadow:
-              "0 10px 20px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2)",
-          }}
-        >
-          <h2 className="text-2xl font-bold mb-4 text-center">Cadastro do Aluno</h2>
 
-          {jaCadastrado && (
-            <Message
-              severity="info"
-              text="Seu cadastro já foi enviado e não pode ser modificado."
-              className="w-full mb-4"
-            />
-          )}
+    <div style={{ maxWidth: 500, margin: "auto" }}>
 
-          {errors.backend && (
-            <Message
-              severity="error"
-              text={errors.backend}
-              className="w-full mb-4"
-            />
-          )}
+      <ConfirmDialog />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label htmlFor="matricula" style={{ color: "#fff", fontSize: 14 }}>
-              Matrícula
-            </label>
-            <InputText
-              id="matricula"
-              value={form.matricula}
-              disabled
-              style={{ width: "100%" }}
-            />
+      <h2>Cadastro do Aluno</h2>
 
-            <label htmlFor="nome" style={{ color: "#fff", fontSize: 14 }}>
-              Nome
-            </label>
-            <InputText
-              id="nome"
-              value={form.nome}
-              onChange={(e) => handleChange(e, "nome")}
-              disabled={jaCadastrado}
-              style={{ width: "100%" }}
-            />
-            {errors.nome && <Message severity="error" text={errors.nome} />}
+      {erroFace && <Message severity="error" text={erroFace} />}
 
-            <label htmlFor="email" style={{ color: "#fff", fontSize: 14 }}>
-              Email
-            </label>
-            <InputText
-              id="email"
-              value={form.email}
-              onChange={(e) => handleChange(e, "email")}
-              disabled={jaCadastrado}
-              style={{ width: "100%" }}
-            />
-            {errors.email && <Message severity="error" text={errors.email} />}
+      <div>
 
-            <div>
-              <label htmlFor="foto" style={{ color: "#fff", fontSize: 14 }}>
-                Foto
-              </label>
-              <input
-                id="foto"
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFoto(e.target.files?.[0] || null)}
-                disabled={jaCadastrado}
-                style={{ width: "100%" }}
-              />
-              {errors.foto && <Message severity="error" text={errors.foto} />}
-              {preview && (
-                <img
-                  src={preview}
-                  alt="Preview"
-                  style={{
-                    marginTop: "12px",
-                    width: "120px",
-                    height: "160px",
-                    borderRadius: "8px",
-                    objectFit: "cover",
-                    margin: "0 auto",
-                  }}
-                />
-              )}
-            </div>
+        <label>Nome</label>
 
-            <Button
-              label={jaCadastrado ? "Cadastro já enviado" : loading ? "Salvando..." : "Salvar"}
-              onClick={confirmarEnvio}
-              style={{ width: "100%", marginTop: "12px" }}
-              disabled={loading || jaCadastrado}
-              loading={loading}
-            />
-          </div>
-        </div>
+        <InputText
+          value={form.nome}
+          onChange={(e) => handleChange(e, "nome")}
+        />
+
+        {errors.nome && <Message severity="error" text={errors.nome} />}
+
       </div>
+
+      <div>
+
+        <label>Email</label>
+
+        <InputText
+          value={form.email}
+          onChange={(e) => handleChange(e, "email")}
+        />
+
+        {errors.email && <Message severity="error" text={errors.email} />}
+
+      </div>
+
+      <div>
+
+        <label>Enviar foto</label>
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleUpload}
+        />
+
+        {errors.foto && <Message severity="error" text={errors.foto} />}
+
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+
+        <Button
+          label="Abrir câmera"
+          onClick={iniciarCamera}
+        />
+
+      </div>
+
+      {cameraAtiva && (
+
+        <div>
+
+          <video
+            ref={videoRef}
+            width="320"
+          />
+
+          <Button
+            label="Capturar foto"
+            onClick={capturarFoto}
+          />
+
+        </div>
+
+      )}
+
+      <canvas
+        ref={canvasRef}
+        style={{ display: "none" }}
+      />
+
+      {preview && (
+
+        <img
+          src={preview}
+          width="200"
+          style={{ marginTop: 20 }}
+        />
+
+      )}
+
+      <div style={{ marginTop: 20 }}>
+
+        <Button
+          label="Salvar cadastro"
+          onClick={confirmarEnvio}
+          loading={loading}
+        />
+
+      </div>
+
     </div>
   );
 }
