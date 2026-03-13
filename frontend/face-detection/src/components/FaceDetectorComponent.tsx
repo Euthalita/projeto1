@@ -1,18 +1,25 @@
 import { useEffect, useRef } from "react";
-import {
-  FaceDetector,
-  FilesetResolver,
-} from "@mediapipe/tasks-vision";
+import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import { recognizeFace } from "../api/faceRecognitionApi";
 
 export default function FaceDetectorComponent() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const lastCaptureTime = useRef(0);
+  const lastDetectionTime = useRef(0);
+
   const isProcessing = useRef(false);
-  const faceStableCounter = useRef(0);
+  const lastBox = useRef<any>(null);
+
+  const recognizedFaces = useRef<Map<string, number>>(new Map());
+
+  const DETECTION_INTERVAL = 100; // 10 FPS
+  const CAPTURE_COOLDOWN = 2000;
+  const FACE_IGNORE_TIME = 10000; // 10 segundos
+  const FACE_SIZE = 160;
 
   useEffect(() => {
 
@@ -35,6 +42,7 @@ export default function FaceDetectorComponent() {
 
       await startCamera();
       detectFaces();
+
     };
 
     const startCamera = async () => {
@@ -62,18 +70,28 @@ export default function FaceDetectorComponent() {
 
     };
 
-    const captureFace = async (box: any) => {
+    const isFaceStable = (box: any) => {
+
+      if (!lastBox.current) {
+        lastBox.current = box;
+        return false;
+      }
+
+      const dx = Math.abs(box.originX - lastBox.current.originX);
+      const dy = Math.abs(box.originY - lastBox.current.originY);
+
+      lastBox.current = box;
+
+      return dx < 5 && dy < 5;
+
+    };
+
+    const captureFace = async (box: any, ctx: CanvasRenderingContext2D) => {
 
       const now = Date.now();
 
-      // cooldown de 2 segundos
-      if (now - lastCaptureTime.current < 2000) {
-        return;
-      }
-
-      if (isProcessing.current) {
-        return;
-      }
+      if (now - lastCaptureTime.current < CAPTURE_COOLDOWN) return;
+      if (isProcessing.current) return;
 
       const video = videoRef.current;
       if (!video) return;
@@ -81,13 +99,17 @@ export default function FaceDetectorComponent() {
       isProcessing.current = true;
       lastCaptureTime.current = now;
 
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+      if (!captureCanvasRef.current) {
+        captureCanvasRef.current = document.createElement("canvas");
+      }
 
-      canvas.width = box.width;
-      canvas.height = box.height;
+      const canvas = captureCanvasRef.current;
+      const ctxCapture = canvas.getContext("2d");
 
-      ctx?.drawImage(
+      canvas.width = FACE_SIZE;
+      canvas.height = FACE_SIZE;
+
+      ctxCapture?.drawImage(
         video,
         box.originX,
         box.originY,
@@ -95,26 +117,75 @@ export default function FaceDetectorComponent() {
         box.height,
         0,
         0,
+        FACE_SIZE,
+        FACE_SIZE
+      );
+
+      canvas.toBlob(
+        async (blob) => {
+
+          if (!blob) {
+            isProcessing.current = false;
+            return;
+          }
+
+          try {
+
+            const result = await recognizeFace(blob);
+
+            if (!result) {
+              drawBox(ctx, box, "red");
+              isProcessing.current = false;
+              return;
+            }
+
+            const now = Date.now();
+            const lastSeen = recognizedFaces.current.get(result.id);
+
+            if (lastSeen && now - lastSeen < FACE_IGNORE_TIME) {
+
+              console.log("Rosto já reconhecido recentemente");
+              drawBox(ctx, box, "green");
+
+              isProcessing.current = false;
+              return;
+
+            }
+
+            recognizedFaces.current.set(result.id, now);
+
+            console.log("Aluno reconhecido:", result.nome);
+
+            drawBox(ctx, box, "green");
+
+          } catch (error) {
+
+            console.error("Erro reconhecimento:", error);
+
+            drawBox(ctx, box, "red");
+
+          }
+
+          isProcessing.current = false;
+
+        },
+        "image/jpeg",
+        0.8
+      );
+
+    };
+
+    const drawBox = (ctx: CanvasRenderingContext2D, box: any, color: string) => {
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+
+      ctx.strokeRect(
+        box.originX,
+        box.originY,
         box.width,
         box.height
       );
-
-      const base64 = canvas.toDataURL("image/jpeg");
-      const image = base64.split(",")[1];
-
-      try {
-
-        const result = await recognizeFace(image);
-
-        console.log("Resultado reconhecimento:", result);
-
-      } catch (error) {
-
-        console.error("Erro no reconhecimento:", error);
-
-      }
-
-      isProcessing.current = false;
 
     };
 
@@ -133,7 +204,14 @@ export default function FaceDetectorComponent() {
 
       const render = async () => {
 
-        if (!faceDetector) return;
+        const now = performance.now();
+
+        if (now - lastDetectionTime.current < DETECTION_INTERVAL) {
+          animationFrameId = requestAnimationFrame(render);
+          return;
+        }
+
+        lastDetectionTime.current = now;
 
         const detections = faceDetector.detectForVideo(
           video,
@@ -144,37 +222,20 @@ export default function FaceDetectorComponent() {
 
         if (detections.detections.length > 0) {
 
-          faceStableCounter.current += 1;
+          const detection = detections.detections[0];
+          const box = detection.boundingBox;
 
-          detections.detections.forEach(async (detection) => {
+          if (box) {
 
-            const box = detection.boundingBox;
-            if (!box) return;
+            drawBox(ctx, box, "red");
 
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 3;
+            if (isFaceStable(box)) {
 
-            ctx.strokeRect(
-              box.originX,
-              box.originY,
-              box.width,
-              box.height
-            );
-
-            // só captura se o rosto estiver estável
-            if (faceStableCounter.current > 5) {
-
-              await captureFace(box);
-
-              faceStableCounter.current = 0;
+              await captureFace(box, ctx);
 
             }
 
-          });
-
-        } else {
-
-          faceStableCounter.current = 0;
+          }
 
         }
 

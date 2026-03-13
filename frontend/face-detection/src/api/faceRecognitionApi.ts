@@ -1,10 +1,11 @@
 import { api } from "./api";
 
-export const recognizeFace = async (image: string) => {
+export const recognizeFace = async (imageBlob: Blob) => {
 
-  const response = await api.post("/recognize", {
-    image
-  });
+  const formData = new FormData();
+  formData.append("image", imageBlob, "face.jpg");
+
+  const response = await api.post("/recognize", formData);
 
   return response.data;
 };
