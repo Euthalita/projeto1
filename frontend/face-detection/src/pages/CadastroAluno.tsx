@@ -17,6 +17,7 @@ export default function CadastroAluno() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
 
   const [detector, setDetector] = useState<FaceDetector | null>(null);
   const [cameraAtiva, setCameraAtiva] = useState(false);
@@ -65,6 +66,57 @@ export default function CadastroAluno() {
       console.error(error);
       setErroFace("Erro ao carregar o detector facial.");
     }
+  }
+
+  function detectarEmTempoReal() {
+
+    if (!videoRef.current || !overlayRef.current || !detector) return;
+
+    const video = videoRef.current;
+    const canvas = overlayRef.current;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    // ✅ agora criamos uma versão "garantida"
+    const ctx: CanvasRenderingContext2D = context;
+
+    canvas.width = video.videoWidth || 320;
+    canvas.height = video.videoHeight || 240;
+
+    function detectar() {
+
+      if (video.readyState < 2 || !detector) {
+        requestAnimationFrame(detectar);
+        return;
+      }
+
+      const result = detector.detect(video);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (result.detections) {
+        result.detections.forEach((detection) => {
+
+          const box = detection.boundingBox;
+          if (!box) return;
+
+          ctx.strokeStyle = "lime";
+          ctx.lineWidth = 3;
+
+          ctx.strokeRect(
+            box.originX,
+            box.originY,
+            box.width,
+            box.height
+          );
+        });
+      }
+
+      requestAnimationFrame(detectar);
+    }
+
+    detectar();
   }
 
   function validarCampo(campo: string, valor: string) {
@@ -187,10 +239,14 @@ export default function CadastroAluno() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
       }
 
       setCameraAtiva(true);
+
+      if (detector) {
+        detectarEmTempoReal();
+      }
 
     } catch (error) {
       console.error(error);
@@ -297,13 +353,11 @@ export default function CadastroAluno() {
     setLoading(false);
   }
 
-  // 🔥 IMPORTANTE: evita tela preta
   if (!detector) {
-    return <p style={{ color: "white" }}>Carregando reconhecimento facial...</p>;
+    return <p>Carregando reconhecimento facial...</p>;
   }
 
   return (
-
     <div style={{ maxWidth: 500, margin: "auto" }}>
 
       <ConfirmDialog />
@@ -345,9 +399,40 @@ export default function CadastroAluno() {
       </div>
 
       {cameraAtiva && (
-        <div>
-          <video ref={videoRef} width="320" />
-          <Button label="Capturar foto" onClick={capturarFoto} />
+        <div style={{ position: "relative", width: 320, height: 240 }}>
+
+          <video
+            ref={videoRef}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover"
+            }}
+          />
+
+          <canvas
+            ref={overlayRef}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%"
+            }}
+          />
+
+          <canvas
+            ref={overlayRef}
+            style={{ position: "absolute", top: 0, left: 0 }}
+          />
+
+          <div style={{ marginTop: 250 }}>
+            <Button label="Capturar foto" onClick={capturarFoto} />
+          </div>
+
         </div>
       )}
 
