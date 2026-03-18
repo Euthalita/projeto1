@@ -4,7 +4,7 @@ import { Button } from "primereact/button";
 import { Message } from "primereact/message";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { useAuth } from "../context/AuthContext";
-import { atualizarCadastro, buscarCadastro } from "../api/alunoService";
+import { atualizarCadastro } from "../api/alunoService";
 
 import {
   FaceDetector,
@@ -44,22 +44,27 @@ export default function CadastroAluno() {
   }, []);
 
   async function iniciarMediaPipe() {
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+      );
 
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-    );
-
-    const faceDetector = await FaceDetector.createFromOptions(
-      vision,
-      {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
+      const faceDetector = await FaceDetector.createFromOptions(
+        vision,
+        {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
+          }
         }
-      }
-    );
+      );
 
-    setDetector(faceDetector);
+      setDetector(faceDetector);
+
+    } catch (error) {
+      console.error(error);
+      setErroFace("Erro ao carregar o detector facial.");
+    }
   }
 
   function validarCampo(campo: string, valor: string) {
@@ -70,10 +75,8 @@ export default function CadastroAluno() {
       erro = "Nome é obrigatório.";
 
     if (campo === "email") {
-
       if (!valor.trim())
         erro = "Email é obrigatório.";
-
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor))
         erro = "Digite um email válido.";
     }
@@ -105,7 +108,6 @@ export default function CadastroAluno() {
 
     if (!form.email.trim())
       novosErros.email = "Email é obrigatório.";
-
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       novosErros.email = "Digite um email válido.";
 
@@ -122,19 +124,24 @@ export default function CadastroAluno() {
 
   async function validarImagem(file: File) {
 
-    if (!detector) return false;
+    if (!detector) {
+      setErroFace("Carregando detector facial...");
+      return false;
+    }
 
     const img = new Image();
     img.src = URL.createObjectURL(file);
 
-    await img.decode();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
 
     const canvas = document.createElement("canvas");
     canvas.width = img.width;
     canvas.height = img.height;
 
     const ctx = canvas.getContext("2d");
-
     if (!ctx) return false;
 
     ctx.drawImage(img, 0, 0);
@@ -142,13 +149,11 @@ export default function CadastroAluno() {
     const result = detector.detect(canvas);
 
     if (!result.detections || result.detections.length === 0) {
-
       setErroFace("Nenhum rosto detectado.");
       return false;
     }
 
     if (result.detections.length > 1) {
-
       setErroFace("Mais de um rosto detectado.");
       return false;
     }
@@ -160,11 +165,9 @@ export default function CadastroAluno() {
   async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
 
     const file = e.target.files?.[0];
-
     if (!file) return;
 
     const valido = await validarImagem(file);
-
     if (!valido) return;
 
     setFoto(file);
@@ -177,24 +180,30 @@ export default function CadastroAluno() {
   }
 
   async function iniciarCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true
+      });
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true
-    });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
 
-    if (videoRef.current) {
+      setCameraAtiva(true);
 
-      videoRef.current.srcObject = stream;
-      videoRef.current.play();
+    } catch (error) {
+      console.error(error);
+      setErroFace("Erro ao acessar a câmera.");
     }
-
-    setCameraAtiva(true);
   }
 
   async function capturarFoto() {
 
-    if (!videoRef.current || !canvasRef.current || !detector)
+    if (!videoRef.current || !canvasRef.current || !detector) {
+      setErroFace("Detector não carregado.");
       return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -203,7 +212,6 @@ export default function CadastroAluno() {
     canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext("2d");
-
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0);
@@ -211,13 +219,11 @@ export default function CadastroAluno() {
     const result = detector.detect(canvas);
 
     if (!result.detections || result.detections.length === 0) {
-
       setErroFace("Nenhum rosto detectado.");
       return;
     }
 
     if (result.detections.length > 1) {
-
       setErroFace("Mais de um rosto detectado.");
       return;
     }
@@ -225,7 +231,6 @@ export default function CadastroAluno() {
     setErroFace("");
 
     canvas.toBlob(blob => {
-
       if (!blob) return;
 
       const file = new File([blob], "foto_camera.jpg", {
@@ -285,13 +290,16 @@ export default function CadastroAluno() {
       alert("Cadastro realizado com sucesso!");
 
     } catch (error) {
-
       console.error(error);
       alert("Erro ao enviar cadastro.");
-
     }
 
     setLoading(false);
+  }
+
+  // 🔥 IMPORTANTE: evita tela preta
+  if (!detector) {
+    return <p style={{ color: "white" }}>Carregando reconhecimento facial...</p>;
   }
 
   return (
@@ -305,95 +313,60 @@ export default function CadastroAluno() {
       {erroFace && <Message severity="error" text={erroFace} />}
 
       <div>
-
         <label>Nome</label>
-
         <InputText
           value={form.nome}
           onChange={(e) => handleChange(e, "nome")}
         />
-
         {errors.nome && <Message severity="error" text={errors.nome} />}
-
       </div>
 
       <div>
-
         <label>Email</label>
-
         <InputText
           value={form.email}
           onChange={(e) => handleChange(e, "email")}
         />
-
         {errors.email && <Message severity="error" text={errors.email} />}
-
       </div>
 
       <div>
-
         <label>Enviar foto</label>
-
         <input
           type="file"
           accept="image/*"
           onChange={handleUpload}
         />
-
         {errors.foto && <Message severity="error" text={errors.foto} />}
-
       </div>
 
       <div style={{ marginTop: 20 }}>
-
-        <Button
-          label="Abrir câmera"
-          onClick={iniciarCamera}
-        />
-
+        <Button label="Abrir câmera" onClick={iniciarCamera} />
       </div>
 
       {cameraAtiva && (
-
         <div>
-
-          <video
-            ref={videoRef}
-            width="320"
-          />
-
-          <Button
-            label="Capturar foto"
-            onClick={capturarFoto}
-          />
-
+          <video ref={videoRef} width="320" />
+          <Button label="Capturar foto" onClick={capturarFoto} />
         </div>
-
       )}
 
-      <canvas
-        ref={canvasRef}
-        style={{ display: "none" }}
-      />
+      <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {preview && (
-
         <img
           src={preview}
           width="200"
           style={{ marginTop: 20 }}
         />
-
       )}
 
       <div style={{ marginTop: 20 }}>
-
         <Button
           label="Salvar cadastro"
           onClick={confirmarEnvio}
           loading={loading}
         />
-
       </div>
 
     </div>

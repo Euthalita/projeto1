@@ -9,15 +9,13 @@ import { Navbar } from "./components/Navbar";
 export default function App() {
   return (
     <Routes>
-      
-      <Route path="/" element={<Login />} />
 
-      {/* rota pública */}
+      <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
 
-      {/* rota protegida - cadastro */}
+      {/* CADASTRO COM PARAMETRO */}
       <Route
-        path="/cadastro"
+        path="/cadastro/:matricula"
         element={
           <ProtectedRoute>
             <>
@@ -28,7 +26,7 @@ export default function App() {
         }
       />
 
-      {/* rota protegida - chamada facial */}
+      {/* CHAMADA */}
       <Route
         path="/chamada"
         element={
@@ -40,6 +38,9 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* FALLBACK (evita tela preta) */}
+      <Route path="*" element={<h1>Página não encontrada</h1>} />
 
     </Routes>
   );
