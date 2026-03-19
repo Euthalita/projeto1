@@ -14,7 +14,7 @@ import {
 export default function CadastroAluno() {
 
   const { user } = useAuth();
-
+0
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -81,8 +81,10 @@ export default function CadastroAluno() {
     // ✅ agora criamos uma versão "garantida"
     const ctx: CanvasRenderingContext2D = context;
 
-    canvas.width = video.videoWidth || 320;
-    canvas.height = video.videoHeight || 240;
+    const rect = video.getBoundingClientRect();
+
+canvas.width = rect.width;
+canvas.height = rect.height;
 
     function detectar() {
 
@@ -101,15 +103,15 @@ export default function CadastroAluno() {
           const box = detection.boundingBox;
           if (!box) return;
 
-          ctx.strokeStyle = "lime";
-          ctx.lineWidth = 3;
+          const scaleX = canvas.width / video.videoWidth;
+const scaleY = canvas.height / video.videoHeight;
 
-          ctx.strokeRect(
-            box.originX,
-            box.originY,
-            box.width,
-            box.height
-          );
+ctx.strokeRect(
+  box.originX * scaleX,
+  box.originY * scaleY,
+  box.width * scaleX,
+  box.height * scaleY
+);
         });
       }
 
