@@ -1,77 +1,33 @@
 package com.tcc.face_detection.controller;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.Optional;
-import javax.imageio.ImageIO;
-
-import org.bytedeco.opencv.global.opencv_imgcodecs;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.RectVector;
-import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.tcc.face_detection.dto.CadastroDTO;
 import com.tcc.face_detection.model.AlunoCadastro;
 import com.tcc.face_detection.service.AlunoService;
+import com.tcc.face_detection.service.PythonValidationService;
 
 @RestController
 @RequestMapping("/api/cadastro")
 public class CadastroController {
 
     private final AlunoService alunoService;
+    private final PythonValidationService pythonService;
 
-    public CadastroController(AlunoService alunoService) {
+    public CadastroController(AlunoService alunoService, PythonValidationService pythonService) {
         this.alunoService = alunoService;
-    }
-
-    private void validarRosto(MultipartFile foto) throws Exception {
-
-        byte[] bytes = foto.getBytes();
-        Mat img = opencv_imgcodecs.imdecode(new Mat(bytes), opencv_imgcodecs.IMREAD_COLOR);
-        if (img == null || img.empty()) {
-            throw new Exception("Não foi possível ler a imagem enviada.");
-        }
-
-        String resourcePath = "/resources/models/haarcascade_frontalface_default.xml";
-
-        InputStream is = getClass().getResourceAsStream(resourcePath);
-        if (is == null) {
-            throw new Exception("Arquivo de cascade não encontrado em: " + resourcePath);
-        }
-
-        File tempCascade = File.createTempFile("haarcascade", ".xml");
-        tempCascade.deleteOnExit();
-
-        try (FileOutputStream os = new FileOutputStream(tempCascade)) {
-            byte[] buffer = new byte[4096];
-            int read;
-            while ((read = is.read(buffer)) != -1) {
-                os.write(buffer, 0, read);
-            }
-        }
-        is.close();
-
-        CascadeClassifier detector = new CascadeClassifier(tempCascade.getAbsolutePath());
-        if (detector.empty()) {
-            throw new Exception("Falha ao carregar CascadeClassifier.");
-        }
-
-        RectVector rostos = new RectVector();
-        detector.detectMultiScale(img, rostos);
-
-        long count = rostos.size();
-        if (count == 0) {
-            throw new Exception("Nenhuma pessoa foi detectada na foto. Envie uma foto válida.");
-        }
+        this.pythonService = pythonService;
     }
 
     @PostMapping(value = "/{matricula}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -81,20 +37,29 @@ public class CadastroController {
             @RequestPart(value = "foto", required = false) MultipartFile foto) {
 
         try {
-            if (foto != null && !foto.isEmpty()) {
-                validarRosto(foto);
-                cadastroDTO.setFoto(foto);
-            }
 
-            AlunoCadastro aluno = alunoService.atualizarCadastro(matricula, cadastroDTO);
-            return ResponseEntity.ok(aluno);
+    if (foto != null && !foto.isEmpty()) {
 
-        } catch (Exception e) {
+        // ✅ PASSO 3: CHAMANDO O PYTHON
+        boolean valido = pythonService.validarImagem(foto);
+
+        if (!valido) {
             return ResponseEntity
                 .badRequest()
-                .body(Map.of("message", e.getMessage()));
-
+                .body(Map.of("message", "Imagem inválida ou não é uma pessoa real."));
         }
+
+        cadastroDTO.setFoto(foto);
+    }
+
+    AlunoCadastro aluno = alunoService.atualizarCadastro(matricula, cadastroDTO);
+    return ResponseEntity.ok(aluno);
+
+} catch (Exception e) {
+    return ResponseEntity
+        .badRequest()
+        .body(Map.of("message", e.getMessage()));
+}
     }
 
     @GetMapping("/siga/alunos/{matricula}")
@@ -103,4 +68,6 @@ public class CadastroController {
         return alunoOpt.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+    
 }
+
