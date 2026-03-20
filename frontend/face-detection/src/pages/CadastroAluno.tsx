@@ -4,17 +4,12 @@ import { Button } from "primereact/button";
 import { Message } from "primereact/message";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { useAuth } from "../context/AuthContext";
-import { atualizarCadastro } from "../api/alunoService";
-
-import {
-  FaceDetector,
-  FilesetResolver
-} from "@mediapipe/tasks-vision";
+import { FaceDetector, FilesetResolver} from "@mediapipe/tasks-vision";
+import { api } from "../api/api";
 
 export default function CadastroAluno() {
 
   const { user } = useAuth();
-0
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -40,6 +35,27 @@ export default function CadastroAluno() {
     foto: ""
   });
 
+  // Função utilitária: File -> Base64
+  async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        } else {
+          reject("Erro ao ler arquivo");
+        }
+      };
+
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Inicialização MediaPipe
   useEffect(() => {
     iniciarMediaPipe();
   }, []);
@@ -68,26 +84,22 @@ export default function CadastroAluno() {
     }
   }
 
+  // Funções para câmera e detecção
   function detectarEmTempoReal() {
-
     if (!videoRef.current || !overlayRef.current || !detector) return;
 
     const video = videoRef.current;
     const canvas = overlayRef.current;
-
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    // ✅ agora criamos uma versão "garantida"
     const ctx: CanvasRenderingContext2D = context;
-
     const rect = video.getBoundingClientRect();
 
-canvas.width = rect.width;
-canvas.height = rect.height;
+    canvas.width = rect.width;
+    canvas.height = rect.height;
 
     function detectar() {
-
       if (video.readyState < 2 || !detector) {
         requestAnimationFrame(detectar);
         return;
@@ -99,19 +111,18 @@ canvas.height = rect.height;
 
       if (result.detections) {
         result.detections.forEach((detection) => {
-
           const box = detection.boundingBox;
           if (!box) return;
 
           const scaleX = canvas.width / video.videoWidth;
-const scaleY = canvas.height / video.videoHeight;
+          const scaleY = canvas.height / video.videoHeight;
 
-ctx.strokeRect(
-  box.originX * scaleX,
-  box.originY * scaleY,
-  box.width * scaleX,
-  box.height * scaleY
-);
+          ctx.strokeRect(
+            box.originX * scaleX,
+            box.originY * scaleY,
+            box.width * scaleX,
+            box.height * scaleY
+          );
         });
       }
 
@@ -121,135 +132,15 @@ ctx.strokeRect(
     detectar();
   }
 
-  function validarCampo(campo: string, valor: string) {
-
-    let erro = "";
-
-    if (campo === "nome" && !valor.trim())
-      erro = "Nome é obrigatório.";
-
-    if (campo === "email") {
-      if (!valor.trim())
-        erro = "Email é obrigatório.";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor))
-        erro = "Digite um email válido.";
-    }
-
-    setErrors(prev => ({
-      ...prev,
-      [campo]: erro
-    }));
-  }
-
-  function handleChange(e: ChangeEvent<HTMLInputElement>, campo: string) {
-
-    const valor = e.target.value;
-
-    setForm(prev => ({
-      ...prev,
-      [campo]: valor
-    }));
-
-    validarCampo(campo, valor);
-  }
-
-  function validarFormulario() {
-
-    const novosErros: any = {};
-
-    if (!form.nome.trim())
-      novosErros.nome = "Nome é obrigatório.";
-
-    if (!form.email.trim())
-      novosErros.email = "Email é obrigatório.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-      novosErros.email = "Digite um email válido.";
-
-    if (!foto)
-      novosErros.foto = "Envie uma foto.";
-
-    setErrors(prev => ({
-      ...prev,
-      ...novosErros
-    }));
-
-    return Object.keys(novosErros).length === 0;
-  }
-
-  async function validarImagem(file: File) {
-
-    if (!detector) {
-      setErroFace("Carregando detector facial...");
-      return false;
-    }
-
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return false;
-
-    ctx.drawImage(img, 0, 0);
-
-    const result = detector.detect(canvas);
-
-    if (!result.detections || result.detections.length === 0) {
-      setErroFace("Nenhum rosto detectado.");
-      return false;
-    }
-
-    if (result.detections.length > 1) {
-      setErroFace("Mais de um rosto detectado.");
-      return false;
-    }
-
-    setErroFace("");
-    return true;
-  }
-
-  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
-
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const valido = await validarImagem(file);
-    if (!valido) return;
-
-    setFoto(file);
-    setPreview(URL.createObjectURL(file));
-
-    setErrors(prev => ({
-      ...prev,
-      foto: ""
-    }));
-  }
-
   async function iniciarCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true
-      });
-
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-
       setCameraAtiva(true);
-
-      if (detector) {
-        detectarEmTempoReal();
-      }
-
+      if (detector) detectarEmTempoReal();
     } catch (error) {
       console.error(error);
       setErroFace("Erro ao acessar a câmera.");
@@ -257,7 +148,6 @@ ctx.strokeRect(
   }
 
   async function capturarFoto() {
-
     if (!videoRef.current || !canvasRef.current || !detector) {
       setErroFace("Detector não carregado.");
       return;
@@ -291,23 +181,88 @@ ctx.strokeRect(
     canvas.toBlob(blob => {
       if (!blob) return;
 
-      const file = new File([blob], "foto_camera.jpg", {
-        type: "image/jpeg"
-      });
-
+      const file = new File([blob], "foto_camera.jpg", { type: "image/jpeg" });
       setFoto(file);
       setPreview(URL.createObjectURL(blob));
 
-      setErrors(prev => ({
-        ...prev,
-        foto: ""
-      }));
-
+      setErrors(prev => ({ ...prev, foto: "" }));
     }, "image/jpeg");
   }
 
-  function confirmarEnvio() {
+  // Validação de campos e foto
+  function validarCampo(campo: string, valor: string) {
+    let erro = "";
+    if (campo === "nome" && !valor.trim()) erro = "Nome é obrigatório.";
+    if (campo === "email") {
+      if (!valor.trim()) erro = "Email é obrigatório.";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor))
+        erro = "Digite um email válido.";
+    }
+    setErrors(prev => ({ ...prev, [campo]: erro }));
+  }
 
+  function handleChange(e: ChangeEvent<HTMLInputElement>, campo: string) {
+    const valor = e.target.value;
+    setForm(prev => ({ ...prev, [campo]: valor }));
+    validarCampo(campo, valor);
+  }
+
+  function validarFormulario() {
+    const novosErros: any = {};
+    if (!form.nome.trim()) novosErros.nome = "Nome é obrigatório.";
+    if (!form.email.trim()) novosErros.email = "Email é obrigatório.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      novosErros.email = "Digite um email válido.";
+    if (!foto) novosErros.foto = "Envie uma foto.";
+
+    setErrors(prev => ({ ...prev, ...novosErros }));
+    return Object.keys(novosErros).length === 0;
+  }
+
+  async function validarImagem(file: File) {
+    if (!detector) { setErroFace("Carregando detector facial..."); return false; }
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+
+    ctx.drawImage(img, 0, 0);
+
+    const result = detector.detect(canvas);
+
+    if (!result.detections || result.detections.length === 0) {
+      setErroFace("Nenhum rosto detectado."); return false;
+    }
+    if (result.detections.length > 1) {
+      setErroFace("Mais de um rosto detectado."); return false;
+    }
+
+    setErroFace("");
+    return true;
+  }
+
+  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const valido = await validarImagem(file);
+    if (!valido) return;
+
+    setFoto(file);
+    setPreview(URL.createObjectURL(file));
+    setErrors(prev => ({ ...prev, foto: "" }));
+  }
+
+  // Envio do cadastro (base64)
+  function confirmarEnvio() {
     if (!validarFormulario()) return;
 
     confirmDialog({
@@ -321,78 +276,53 @@ ctx.strokeRect(
   }
 
   async function enviarCadastro() {
-
-    if (!foto) return;
+    if (!foto) { alert("Nenhuma foto selecionada."); return; }
 
     setLoading(true);
-
     try {
+      const fotoBase64 = await fileToBase64(foto);
 
-      const formData = new FormData();
+      const payload = {
+        nome: form.nome,
+        email: form.email,
+        fotoBase64: fotoBase64
+      };
 
-      formData.append(
-        "cadastro",
-        new Blob(
-          [JSON.stringify({
-            nome: form.nome,
-            email: form.email
-          })],
-          { type: "application/json" }
-        )
-      );
-
-      formData.append("foto", foto);
-
-      await atualizarCadastro(form.matricula, formData);
+       await api.post(`/api/cadastro/${form.matricula}`, payload);
 
       alert("Cadastro realizado com sucesso!");
-
     } catch (error) {
       console.error(error);
       alert("Erro ao enviar cadastro.");
     }
-
     setLoading(false);
   }
 
-  if (!detector) {
-    return <p>Carregando reconhecimento facial...</p>;
-  }
+  // JSX do componente
+  if (!detector) return <p>Carregando reconhecimento facial...</p>;
 
   return (
     <div style={{ maxWidth: 500, margin: "auto" }}>
-
       <ConfirmDialog />
-
       <h2>Cadastro do Aluno</h2>
 
       {erroFace && <Message severity="error" text={erroFace} />}
 
       <div>
         <label>Nome</label>
-        <InputText
-          value={form.nome}
-          onChange={(e) => handleChange(e, "nome")}
-        />
+        <InputText value={form.nome} onChange={(e) => handleChange(e, "nome")} />
         {errors.nome && <Message severity="error" text={errors.nome} />}
       </div>
 
       <div>
         <label>Email</label>
-        <InputText
-          value={form.email}
-          onChange={(e) => handleChange(e, "email")}
-        />
+        <InputText value={form.email} onChange={(e) => handleChange(e, "email")} />
         {errors.email && <Message severity="error" text={errors.email} />}
       </div>
 
       <div>
         <label>Enviar foto</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleUpload}
-        />
+        <input type="file" accept="image/*" onChange={handleUpload} />
         {errors.foto && <Message severity="error" text={errors.foto} />}
       </div>
 
@@ -402,60 +332,21 @@ ctx.strokeRect(
 
       {cameraAtiva && (
         <div style={{ position: "relative", width: 320, height: 240 }}>
-
-          <video
-            ref={videoRef}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover"
-            }}
-          />
-
-          <canvas
-            ref={overlayRef}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%"
-            }}
-          />
-
-          <canvas
-            ref={overlayRef}
-            style={{ position: "absolute", top: 0, left: 0 }}
-          />
-
+          <video ref={videoRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <canvas ref={overlayRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
           <div style={{ marginTop: 250 }}>
             <Button label="Capturar foto" onClick={capturarFoto} />
           </div>
-
         </div>
       )}
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {preview && (
-        <img
-          src={preview}
-          width="200"
-          style={{ marginTop: 20 }}
-        />
-      )}
+      {preview && <img src={preview} width="200" style={{ marginTop: 20 }} />}
 
       <div style={{ marginTop: 20 }}>
-        <Button
-          label="Salvar cadastro"
-          onClick={confirmarEnvio}
-          loading={loading}
-        />
+        <Button label="Salvar cadastro" onClick={confirmarEnvio} loading={loading} />
       </div>
-
     </div>
   );
 }

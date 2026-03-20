@@ -1,11 +1,20 @@
 import { api } from "./api";
 
-export const recognizeFace = async (imageBlob: Blob) => {
+export const recognizeFace = async (imageBase64: string) => {
+  try {
+    const payload = {
+      fotoBase64: imageBase64
+    };
 
-  const formData = new FormData();
-  formData.append("image", imageBlob, "face.jpg");
+    const response = await api.post("/recognize", payload, {
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
 
-  const response = await api.post("/recognize", formData);
-
-  return response.data;
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao reconhecer o rosto:", error);
+    throw error;
+  }
 };
