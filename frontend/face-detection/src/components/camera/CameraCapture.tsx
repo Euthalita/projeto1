@@ -49,6 +49,8 @@ const CameraCapture: React.FC = () => {
         const targetTimes = [
             { hour: 19, minute: 20 },
             { hour: 19, minute: 40 },
+            { hour: 20, minute: 10 },
+
         ];
 
         let lastCaptureKey: string | null = null;

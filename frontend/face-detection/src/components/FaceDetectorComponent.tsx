@@ -8,17 +8,16 @@ export default function FaceDetectorComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const lastCaptureTime = useRef(0);
   const lastDetectionTime = useRef(0);
+  const lastRecognitionTime = useRef(0);
 
   const isProcessing = useRef(false);
-  const lastBox = useRef<any>(null);
 
-  const recognizedFaces = useRef<Map<string, number>>(new Map());
+  const activeFaces = useRef<Map<string, number>>(new Map()); // presença ativa
+  const recognizedFaces = useRef<Map<string, number>>(new Map()); // reconhecidos
 
-  const DETECTION_INTERVAL = 100; // 10 FPS
-  const CAPTURE_COOLDOWN = 2000;
-  const FACE_IGNORE_TIME = 10000; // 10 segundos
+  const DETECTION_INTERVAL = 100; // leve
+  const RECOGNITION_INTERVAL = 1800000; // 🔥 180 segundos
   const FACE_SIZE = 160;
 
   useEffect(() => {
@@ -56,60 +55,64 @@ export default function FaceDetectorComponent() {
         videoRef.current.srcObject = stream;
 
         await new Promise((resolve) => {
-
           videoRef.current!.onloadedmetadata = () => {
-
             videoRef.current!.play();
             resolve(true);
-
           };
-
         });
 
       }
 
     };
 
-    const isFaceStable = (box: any) => {
-
-      if (!lastBox.current) {
-        lastBox.current = box;
-        return false;
-      }
-
-      const dx = Math.abs(box.originX - lastBox.current.originX);
-      const dy = Math.abs(box.originY - lastBox.current.originY);
-
-      lastBox.current = box;
-
-      return dx < 5 && dy < 5;
-
+    const getFaceKey = (box: any) => {
+      return `${Math.round(box.originX / 50)}-${Math.round(box.originY / 50)}`;
     };
 
-    const captureFace = async (box: any, ctx: CanvasRenderingContext2D) => {
+    const updatePresence = (faceKey: string) => {
 
       const now = Date.now();
 
-      if (now - lastCaptureTime.current < CAPTURE_COOLDOWN) return;
+      activeFaces.current.set(faceKey, now);
+
+    };
+
+    const cleanOldFaces = () => {
+
+      const now = Date.now();
+
+      activeFaces.current.forEach((lastSeen, key) => {
+        if (now - lastSeen > 3000) {
+          activeFaces.current.delete(key);
+        }
+      });
+
+    };
+
+    const captureAndRecognize = async (box: any) => {
+
+      const now = Date.now();
+
+      if (now - lastRecognitionTime.current < RECOGNITION_INTERVAL) return;
       if (isProcessing.current) return;
 
       const video = videoRef.current;
       if (!video) return;
 
       isProcessing.current = true;
-      lastCaptureTime.current = now;
+      lastRecognitionTime.current = now;
 
       if (!captureCanvasRef.current) {
         captureCanvasRef.current = document.createElement("canvas");
       }
 
       const canvas = captureCanvasRef.current;
-      const ctxCapture = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d");
 
       canvas.width = FACE_SIZE;
       canvas.height = FACE_SIZE;
 
-      ctxCapture?.drawImage(
+      ctx?.drawImage(
         video,
         box.originX,
         box.originY,
@@ -121,64 +124,39 @@ export default function FaceDetectorComponent() {
         FACE_SIZE
       );
 
-      canvas.toBlob(
-        async (blob) => {
+      canvas.toBlob(async (blob) => {
 
-          if (!blob) {
-            isProcessing.current = false;
-            return;
-          }
-
-          try {
-
-            const result = await recognizeFace(blob);
-
-            if (!result) {
-              drawBox(ctx, box, "red");
-              isProcessing.current = false;
-              return;
-            }
-
-            const now = Date.now();
-            const lastSeen = recognizedFaces.current.get(result.id);
-
-            if (lastSeen && now - lastSeen < FACE_IGNORE_TIME) {
-
-              console.log("Rosto já reconhecido recentemente");
-              drawBox(ctx, box, "green");
-
-              isProcessing.current = false;
-              return;
-
-            }
-
-            recognizedFaces.current.set(result.id, now);
-
-            console.log("Aluno reconhecido:", result.nome);
-
-            drawBox(ctx, box, "green");
-
-          } catch (error) {
-
-            console.error("Erro reconhecimento:", error);
-
-            drawBox(ctx, box, "red");
-
-          }
-
+        if (!blob) {
           isProcessing.current = false;
+          return;
+        }
 
-        },
-        "image/jpeg",
-        0.8
-      );
+        try {
+
+          const result = await recognizeFace(blob);
+
+          if (result) {
+
+            console.log("Reconhecido:", result.nome);
+
+            recognizedFaces.current.set(result.id, Date.now());
+
+          }
+
+        } catch (err) {
+          console.error(err);
+        }
+
+        isProcessing.current = false;
+
+      }, "image/jpeg", 0.5);
 
     };
 
     const drawBox = (ctx: CanvasRenderingContext2D, box: any, color: string) => {
 
       ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
 
       ctx.strokeRect(
         box.originX,
@@ -220,24 +198,22 @@ export default function FaceDetectorComponent() {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (detections.detections.length > 0) {
+        cleanOldFaces();
 
-          const detection = detections.detections[0];
+        detections.detections.forEach(async (detection: any) => {
+
           const box = detection.boundingBox;
+          const faceKey = getFaceKey(box);
 
-          if (box) {
+          // Presença leve (tempo real)
+          updatePresence(faceKey);
 
-            drawBox(ctx, box, "red");
+          drawBox(ctx, box, "yellow");
 
-            if (isFaceStable(box)) {
+          // Reconhecimento (raramente)
+          await captureAndRecognize(box);
 
-              await captureFace(box, ctx);
-
-            }
-
-          }
-
-        }
+        });
 
         animationFrameId = requestAnimationFrame(render);
 
@@ -250,19 +226,14 @@ export default function FaceDetectorComponent() {
     init();
 
     return () => {
-
       cancelAnimationFrame(animationFrameId);
-
     };
 
   }, []);
 
   return (
-
     <div style={{ position: "relative", width: 640 }}>
-
       <video ref={videoRef} style={{ width: "100%" }} />
-
       <canvas
         ref={canvasRef}
         style={{
@@ -271,9 +242,7 @@ export default function FaceDetectorComponent() {
           left: 0,
         }}
       />
-
     </div>
-
   );
 
 }
