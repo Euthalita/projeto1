@@ -1,11 +1,10 @@
 package com.tcc.face_detection.dto;
 
-import org.springframework.web.multipart.MultipartFile;
-
 public class CadastroDTO {
+    
     private String nome;
     private String email;
-    private MultipartFile foto;
+    private String fotoBase64; // opcional, caso queira enviar a foto como string base64
 
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
@@ -13,7 +12,7 @@ public class CadastroDTO {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
-    public MultipartFile getFoto() { return foto; }
-    public void setFoto(MultipartFile foto) { this.foto = foto; }
+    public String getFotoBase64() { return fotoBase64; }
+    public void setFotoBase64(String fotoBase64) { this.fotoBase64 = fotoBase64; }
 }
 

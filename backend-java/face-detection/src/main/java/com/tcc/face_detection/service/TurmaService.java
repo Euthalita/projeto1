@@ -95,6 +95,7 @@ public class TurmaService {
                 try {
                     horario.setHorario(LocalTime.parse(horarioStr));
                 } catch (Exception e) {
+                    
                     throw new IllegalArgumentException("Formato de horário inválido: " + horarioStr);
                 }
                 horario.setTurma(turma);

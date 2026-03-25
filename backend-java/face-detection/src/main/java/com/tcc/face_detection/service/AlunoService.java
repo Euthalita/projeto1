@@ -5,12 +5,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.tcc.face_detection.dto.CadastroDTO;
 import com.tcc.face_detection.model.AlunoCadastro;
 import com.tcc.face_detection.repository.AlunoCadastroRepository;
@@ -51,19 +49,26 @@ public class AlunoService {
         aluno.setEmail(dto.getEmail());
 
         // =============== SALVAR FOTO ==================
-        MultipartFile foto = dto.getFoto();
-        if (foto != null && !foto.isEmpty()) {
+        String fotoBase64 = dto.getFotoBase64();
+        if (fotoBase64 != null && !fotoBase64.isEmpty()) {
+            // decodifica base64
+    byte[] fotoBytes = java.util.Base64.getDecoder().decode(
+        fotoBase64.replaceFirst("^data:image/[^;]+;base64,", "")
+    );
 
             // cria diretório se não existir
             File dir = new File(UPLOAD_DIR);
             if (!dir.exists()) dir.mkdirs();
 
+            // decodifica Base64
+            byte[] bytes = Base64.getDecoder().decode(fotoBase64);
+
             // gera nome único
-            String fileName = UUID.randomUUID() + "_" + foto.getOriginalFilename();
+            String fileName = UUID.randomUUID() + ".jpg";
             Path path = Paths.get(UPLOAD_DIR + fileName);
 
             // salva arquivo
-            Files.write(path, foto.getBytes());
+            Files.write(path, bytes);
 
             // guarda caminho no banco
             aluno.setFoto(path.toString());
