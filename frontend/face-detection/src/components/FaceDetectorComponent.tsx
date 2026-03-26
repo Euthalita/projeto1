@@ -6,7 +6,6 @@ type TrackedFace = {
   id: string;
   box: any;
   lastSeen: number;
-
   recognized?: boolean;
   studentId?: string;
   lastRecognizedAt?: number;
@@ -18,62 +17,49 @@ export default function FaceDetectorComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const lastDetectionTime = useRef(0);
-  const isProcessing = useRef(false);
-
-  // TRACKING
   const trackedFaces = useRef<TrackedFace[]>([]);
-
-  // RELAÇÃO TRACK → ALUNO
-  const faceToStudent = useRef<Map<string, string>>(new Map());
-
-  // TEMPO DE PRESENÇA (ms)
-  const studentPresence = useRef<Map<string, number>>(new Map());
-
-  // FILA
   const faceQueue = useRef<TrackedFace[]>([]);
 
+  const faceToStudent = useRef<Map<string, string>>(new Map());
+  const studentPresence = useRef<Map<string, number>>(new Map());
+
+  const isProcessing = useRef(false);
+  const lastDetectionTime = useRef(0);
+
   const DETECTION_INTERVAL = 120;
-  const RECOGNITION_INTERVAL = 180000; // 3 min
+  const RECOGNITION_INTERVAL = 180000;
   const FACE_SIZE = 112;
   const MAX_FACES = 8;
 
   useEffect(() => {
 
-    let faceDetector: FaceDetector;
-    let animationFrameId: number;
+    let detector: FaceDetector;
+    let animationId: number;
     let queueInterval: any;
 
     const init = async () => {
+      detector = await initDetector();
+      await initCamera();
+      startDetection();
+      queueInterval = setInterval(processQueue, 1500);
+      debugPresence();
+    };
 
+    const initDetector = async () => {
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
       );
 
-      faceDetector = await FaceDetector.createFromOptions(vision, {
+      return FaceDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath:
             "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
         },
         runningMode: "VIDEO",
       });
-
-      await startCamera();
-      detectFaces();
-      startQueueProcessor();
-
-      // 🔥 DEBUG
-      setInterval(() => {
-        console.log("📊 Presença parcial:");
-        studentPresence.current.forEach((tempo, id) => {
-          console.log(`Aluno ${id}: ${(tempo / 1000).toFixed(1)}s`);
-        });
-      }, 10000);
-
     };
 
-    const startCamera = async () => {
-
+    const initCamera = async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
       });
@@ -88,114 +74,71 @@ export default function FaceDetectorComponent() {
           };
         });
       }
-
     };
 
-    // 🔥 TRACKING
-    const isSameFace = (box1: any, box2: any) => {
-      const dx = Math.abs(box1.originX - box2.originX);
-      const dy = Math.abs(box1.originY - box2.originY);
-      return dx < 60 && dy < 60;
+    const isSameFace = (a: any, b: any) => {
+      return (
+        Math.abs(a.originX - b.originX) < 60 &&
+        Math.abs(a.originY - b.originY) < 60
+      );
     };
 
     const updateTracking = (detections: any[]) => {
-
       const now = Date.now();
       const updated: TrackedFace[] = [];
 
       detections.forEach((det) => {
-
         const box = det.boundingBox;
-        let matched = false;
+        let found = false;
 
         for (let face of trackedFaces.current) {
-
           if (isSameFace(face.box, box)) {
             face.box = box;
             face.lastSeen = now;
             updated.push(face);
-            matched = true;
+            found = true;
             break;
           }
-
         }
 
-        if (!matched) {
+        if (!found) {
           updated.push({
             id: crypto.randomUUID(),
             box,
-            lastSeen: now
+            lastSeen: now,
           });
         }
-
       });
 
       trackedFaces.current = updated.filter(
-        (face) => now - face.lastSeen < 4000
+        (f) => now - f.lastSeen < 4000
       );
-
     };
 
-    // 🔥 PRESENÇA (BASEADA EM TRACKING)
     const updatePresence = () => {
-
       trackedFaces.current.forEach((face) => {
-
         const studentId = faceToStudent.current.get(face.id);
+        if (!studentId) return;
 
-        if (studentId) {
-
-          const prev = studentPresence.current.get(studentId) || 0;
-
-          studentPresence.current.set(
-            studentId,
-            prev + DETECTION_INTERVAL
-          );
-
-        }
-
+        const prev = studentPresence.current.get(studentId) || 0;
+        studentPresence.current.set(studentId, prev + DETECTION_INTERVAL);
       });
-
     };
 
-    // 🔥 FILA INTELIGENTE
+    const shouldRecognizeFace = (face: TrackedFace) => {
+      if (!face.lastRecognizedAt) return true;
+      return Date.now() - face.lastRecognizedAt > RECOGNITION_INTERVAL;
+    };
+
     const enqueueFace = (face: TrackedFace) => {
+      if (!shouldRecognizeFace(face)) return;
 
-      const now = Date.now();
-
-      if (face.recognized && face.lastRecognizedAt) {
-        if (now - face.lastRecognizedAt < RECOGNITION_INTERVAL) {
-          return;
-        }
-      }
-
-      const alreadyQueued = faceQueue.current.some(
-        (f) => f.id === face.id
-      );
-
-      if (!alreadyQueued) {
-        faceQueue.current.push(face);
-      }
-
+      const exists = faceQueue.current.some(f => f.id === face.id);
+      if (!exists) faceQueue.current.push(face);
     };
 
-    // 🔥 RECONHECIMENTO POR ROSTO
-    const captureAndRecognize = async (face: TrackedFace) => {
-
-      const now = Date.now();
-
-      if (face.recognized && face.lastRecognizedAt) {
-        if (now - face.lastRecognizedAt < RECOGNITION_INTERVAL) {
-          return;
-        }
-      }
-
-      if (isProcessing.current) return;
-
-      const video = videoRef.current;
-      if (!video) return;
-
-      isProcessing.current = true;
+    const captureFace = async (face: TrackedFace) => {
+      if (!videoRef.current) return;
 
       if (!captureCanvasRef.current) {
         captureCanvasRef.current = document.createElement("canvas");
@@ -208,7 +151,7 @@ export default function FaceDetectorComponent() {
       canvas.height = FACE_SIZE;
 
       ctx?.drawImage(
-        video,
+        videoRef.current,
         face.box.originX,
         face.box.originY,
         face.box.width,
@@ -220,62 +163,46 @@ export default function FaceDetectorComponent() {
       );
 
       return new Promise<void>((resolve) => {
-
         canvas.toBlob(async (blob) => {
-
-          if (!blob) {
-            isProcessing.current = false;
-            resolve();
-            return;
-          }
+          if (!blob) return resolve();
 
           try {
-
             const result = await recognizeFace(blob);
 
             if (result) {
-              console.log("✅ Reconhecido:", result.nome);
-
               face.recognized = true;
               face.studentId = result.id;
-              face.lastRecognizedAt = now;
+              face.lastRecognizedAt = Date.now();
 
               faceToStudent.current.set(face.id, result.id);
+
+              console.log("✅ Reconhecido:", result.nome);
             }
 
           } catch (err) {
             console.error(err);
           }
 
-          isProcessing.current = false;
           resolve();
-
         }, "image/jpeg", 0.5);
-
       });
-
     };
 
-    // 🔥 PROCESSADOR DA FILA
-    const startQueueProcessor = () => {
+    const processQueue = async () => {
+      if (isProcessing.current) return;
+      if (faceQueue.current.length === 0) return;
 
-      queueInterval = setInterval(async () => {
+      const face = faceQueue.current.shift();
+      if (!face) return;
 
-        if (faceQueue.current.length === 0) return;
-        if (isProcessing.current) return;
+      if (!shouldRecognizeFace(face)) return;
 
-        const face = faceQueue.current.shift();
-
-        if (face) {
-          await captureAndRecognize(face);
-        }
-
-      }, 1500);
-
+      isProcessing.current = true;
+      await captureFace(face);
+      isProcessing.current = false;
     };
 
     const drawBox = (ctx: CanvasRenderingContext2D, face: TrackedFace) => {
-
       const recognized = faceToStudent.current.has(face.id);
 
       ctx.strokeStyle = recognized ? "green" : "yellow";
@@ -287,11 +214,9 @@ export default function FaceDetectorComponent() {
         face.box.width,
         face.box.height
       );
-
     };
 
-    const detectFaces = () => {
-
+    const startDetection = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
 
@@ -303,48 +228,45 @@ export default function FaceDetectorComponent() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      const render = async () => {
-
+      const loop = async () => {
         const now = performance.now();
 
-        if (now - lastDetectionTime.current < DETECTION_INTERVAL) {
-          animationFrameId = requestAnimationFrame(render);
-          return;
+        if (now - lastDetectionTime.current >= DETECTION_INTERVAL) {
+          lastDetectionTime.current = now;
+
+          const detections = detector.detectForVideo(video, now);
+          const faces = detections.detections.slice(0, MAX_FACES);
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          updateTracking(faces);
+          updatePresence();
+
+          trackedFaces.current.forEach((face) => {
+            drawBox(ctx, face);
+            enqueueFace(face);
+          });
         }
 
-        lastDetectionTime.current = now;
-
-        const detections = faceDetector.detectForVideo(
-          video,
-          performance.now()
-        );
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const faces = detections.detections.slice(0, MAX_FACES);
-
-        updateTracking(faces);
-
-        // 🔥 PRESENÇA NÃO DEPENDE DA FILA
-        updatePresence();
-
-        trackedFaces.current.forEach((face) => {
-          drawBox(ctx, face);
-          enqueueFace(face);
-        });
-
-        animationFrameId = requestAnimationFrame(render);
-
+        animationId = requestAnimationFrame(loop);
       };
 
-      render();
+      loop();
+    };
 
+    const debugPresence = () => {
+      setInterval(() => {
+        console.log("📊 Presença:");
+        studentPresence.current.forEach((t, id) => {
+          console.log(`Aluno ${id}: ${(t / 1000).toFixed(1)}s`);
+        });
+      }, 10000);
     };
 
     init();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animationId);
       clearInterval(queueInterval);
     };
 
@@ -355,13 +277,8 @@ export default function FaceDetectorComponent() {
       <video ref={videoRef} style={{ width: "100%" }} />
       <canvas
         ref={canvasRef}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-        }}
+        style={{ position: "absolute", top: 0, left: 0 }}
       />
     </div>
   );
-
 }
