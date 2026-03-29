@@ -6,9 +6,13 @@ type TrackedFace = {
   id: string;
   box: any;
   lastSeen: number;
+
   recognized?: boolean;
   studentId?: string;
   lastRecognizedAt?: number;
+  locked?: boolean;
+
+  priority?: number;
 };
 
 export default function FaceDetectorComponent() {
@@ -25,11 +29,15 @@ export default function FaceDetectorComponent() {
 
   const isProcessing = useRef(false);
   const lastDetectionTime = useRef(0);
+  const lastApiCall = useRef(0);
 
   const DETECTION_INTERVAL = 120;
   const RECOGNITION_INTERVAL = 180000;
+  const API_INTERVAL = 2000;
   const FACE_SIZE = 112;
   const MAX_FACES = 8;
+  const TRACK_TOLERANCE = 6000;
+  const MAX_QUEUE = 6;
 
   useEffect(() => {
 
@@ -41,8 +49,7 @@ export default function FaceDetectorComponent() {
       detector = await initDetector();
       await initCamera();
       startDetection();
-      queueInterval = setInterval(processQueue, 1500);
-      debugPresence();
+      queueInterval = setInterval(processQueue, 1200);
     };
 
     const initDetector = async () => {
@@ -78,8 +85,10 @@ export default function FaceDetectorComponent() {
 
     const isSameFace = (a: any, b: any) => {
       return (
-        Math.abs(a.originX - b.originX) < 60 &&
-        Math.abs(a.originY - b.originY) < 60
+        Math.abs(a.originX - b.originX) < 50 &&
+        Math.abs(a.originY - b.originY) < 50 &&
+        Math.abs(a.width - b.width) < 40 &&
+        Math.abs(a.height - b.height) < 40
       );
     };
 
@@ -89,19 +98,31 @@ export default function FaceDetectorComponent() {
 
       detections.forEach((det) => {
         const box = det.boundingBox;
-        let found = false;
+        let matched = false;
 
         for (let face of trackedFaces.current) {
-          if (isSameFace(face.box, box)) {
+          if (face.locked && isSameFace(face.box, box)) {
             face.box = box;
             face.lastSeen = now;
             updated.push(face);
-            found = true;
+            matched = true;
             break;
           }
         }
 
-        if (!found) {
+        if (!matched) {
+          for (let face of trackedFaces.current) {
+            if (!face.locked && isSameFace(face.box, box)) {
+              face.box = box;
+              face.lastSeen = now;
+              updated.push(face);
+              matched = true;
+              break;
+            }
+          }
+        }
+
+        if (!matched) {
           updated.push({
             id: crypto.randomUUID(),
             box,
@@ -111,18 +132,58 @@ export default function FaceDetectorComponent() {
       });
 
       trackedFaces.current = updated.filter(
-        (f) => now - f.lastSeen < 4000
+        (f) => now - f.lastSeen < TRACK_TOLERANCE
       );
     };
 
-    const updatePresence = () => {
-      trackedFaces.current.forEach((face) => {
-        const studentId = faceToStudent.current.get(face.id);
-        if (!studentId) return;
+  
+    const calculatePriority = (face: TrackedFace) => {
 
-        const prev = studentPresence.current.get(studentId) || 0;
-        studentPresence.current.set(studentId, prev + DETECTION_INTERVAL);
-      });
+      let score = 0;
+
+      const centerX = face.box.originX + face.box.width / 2;
+      const centerY = face.box.originY + face.box.height / 2;
+
+      const video = videoRef.current;
+      if (!video) return 0;
+
+      const screenCenterX = video.videoWidth / 2;
+      const screenCenterY = video.videoHeight / 2;
+
+      const distToCenter = Math.hypot(centerX - screenCenterX, centerY - screenCenterY);
+
+      // centro da tela
+      score += Math.max(0, 200 - distToCenter);
+
+      // tamanho do rosto
+      score += face.box.width * 0.5;
+
+      // nunca reconhecido
+      if (!face.recognized) score += 300;
+
+      // 🔁 já reconhecido perde prioridade
+      if (face.locked) score -= 200;
+
+      //  tempo sem ver
+      const timeSinceSeen = Date.now() - face.lastSeen;
+      score += Math.min(timeSinceSeen / 20, 100);
+
+      return score;
+    };
+
+    const enqueueFace = (face: TrackedFace) => {
+
+      if (faceQueue.current.length >= MAX_QUEUE) return;
+      if (!shouldRecognizeFace(face)) return;
+
+      const exists = faceQueue.current.some(f => f.id === face.id);
+      if (exists) return;
+
+      face.priority = calculatePriority(face);
+
+      faceQueue.current.push(face);
+
+      faceQueue.current.sort((a, b) => (b.priority! - a.priority!));
     };
 
     const shouldRecognizeFace = (face: TrackedFace) => {
@@ -130,14 +191,8 @@ export default function FaceDetectorComponent() {
       return Date.now() - face.lastRecognizedAt > RECOGNITION_INTERVAL;
     };
 
-    const enqueueFace = (face: TrackedFace) => {
-      if (!shouldRecognizeFace(face)) return;
-
-      const exists = faceQueue.current.some(f => f.id === face.id);
-      if (!exists) faceQueue.current.push(face);
-    };
-
     const captureFace = async (face: TrackedFace) => {
+
       if (!videoRef.current) return;
 
       if (!captureCanvasRef.current) {
@@ -164,14 +219,23 @@ export default function FaceDetectorComponent() {
 
       return new Promise<void>((resolve) => {
         canvas.toBlob(async (blob) => {
+
           if (!blob) return resolve();
 
           try {
+
             const result = await recognizeFace(blob);
 
             if (result) {
+
+              const exists = Array.from(faceToStudent.current.values())
+                .includes(result.id);
+
+              if (exists) return resolve();
+
               face.recognized = true;
               face.studentId = result.id;
+              face.locked = true;
               face.lastRecognizedAt = Date.now();
 
               faceToStudent.current.set(face.id, result.id);
@@ -184,22 +248,40 @@ export default function FaceDetectorComponent() {
           }
 
           resolve();
-        }, "image/jpeg", 0.5);
+        }, "image/jpeg", 0.4);
       });
     };
 
     const processQueue = async () => {
+
+      const now = Date.now();
+
       if (isProcessing.current) return;
       if (faceQueue.current.length === 0) return;
+
+      // RATE LIMIT GLOBAL
+      if (now - lastApiCall.current < API_INTERVAL) return;
 
       const face = faceQueue.current.shift();
       if (!face) return;
 
-      if (!shouldRecognizeFace(face)) return;
-
       isProcessing.current = true;
+      lastApiCall.current = now;
+
       await captureFace(face);
+
       isProcessing.current = false;
+    };
+
+    const updatePresence = () => {
+      trackedFaces.current.forEach((face) => {
+        const studentId = faceToStudent.current.get(face.id);
+
+        if (studentId && face.locked) {
+          const prev = studentPresence.current.get(studentId) || 0;
+          studentPresence.current.set(studentId, prev + DETECTION_INTERVAL);
+        }
+      });
     };
 
     const drawBox = (ctx: CanvasRenderingContext2D, face: TrackedFace) => {
@@ -228,10 +310,12 @@ export default function FaceDetectorComponent() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      const loop = async () => {
+      const loop = () => {
+
         const now = performance.now();
 
         if (now - lastDetectionTime.current >= DETECTION_INTERVAL) {
+
           lastDetectionTime.current = now;
 
           const detections = detector.detectForVideo(video, now);
@@ -252,15 +336,6 @@ export default function FaceDetectorComponent() {
       };
 
       loop();
-    };
-
-    const debugPresence = () => {
-      setInterval(() => {
-        console.log("📊 Presença:");
-        studentPresence.current.forEach((t, id) => {
-          console.log(`Aluno ${id}: ${(t / 1000).toFixed(1)}s`);
-        });
-      }, 10000);
     };
 
     init();
