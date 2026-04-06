@@ -27,6 +27,8 @@ export default function FaceDetectorComponent() {
   const faceToStudent = useRef<Map<string, string>>(new Map());
   const studentPresence = useRef<Map<string, number>>(new Map());
 
+  const processingStudents = useRef<Set<string>>(new Set()); // 🔥 anti-duplicação
+
   const isProcessing = useRef(false);
   const lastDetectionTime = useRef(0);
   const lastApiCall = useRef(0);
@@ -136,39 +138,36 @@ export default function FaceDetectorComponent() {
       );
     };
 
-  
     const calculatePriority = (face: TrackedFace) => {
 
       let score = 0;
 
-      const centerX = face.box.originX + face.box.width / 2;
-      const centerY = face.box.originY + face.box.height / 2;
-
       const video = videoRef.current;
       if (!video) return 0;
 
-      const screenCenterX = video.videoWidth / 2;
-      const screenCenterY = video.videoHeight / 2;
+      const centerX = face.box.originX + face.box.width / 2;
+      const centerY = face.box.originY + face.box.height / 2;
 
-      const distToCenter = Math.hypot(centerX - screenCenterX, centerY - screenCenterY);
+      const dist = Math.hypot(
+        centerX - video.videoWidth / 2,
+        centerY - video.videoHeight / 2
+      );
 
-      // centro da tela
-      score += Math.max(0, 200 - distToCenter);
-
-      // tamanho do rosto
+      score += Math.max(0, 200 - dist);
       score += face.box.width * 0.5;
 
-      // nunca reconhecido
       if (!face.recognized) score += 300;
-
-      // 🔁 já reconhecido perde prioridade
       if (face.locked) score -= 200;
 
-      //  tempo sem ver
       const timeSinceSeen = Date.now() - face.lastSeen;
       score += Math.min(timeSinceSeen / 20, 100);
 
       return score;
+    };
+
+    const shouldRecognizeFace = (face: TrackedFace) => {
+      if (!face.lastRecognizedAt) return true;
+      return Date.now() - face.lastRecognizedAt > RECOGNITION_INTERVAL;
     };
 
     const enqueueFace = (face: TrackedFace) => {
@@ -182,13 +181,7 @@ export default function FaceDetectorComponent() {
       face.priority = calculatePriority(face);
 
       faceQueue.current.push(face);
-
-      faceQueue.current.sort((a, b) => (b.priority! - a.priority!));
-    };
-
-    const shouldRecognizeFace = (face: TrackedFace) => {
-      if (!face.lastRecognizedAt) return true;
-      return Date.now() - face.lastRecognizedAt > RECOGNITION_INTERVAL;
+      faceQueue.current.sort((a, b) => b.priority! - a.priority!);
     };
 
     const captureFace = async (face: TrackedFace) => {
@@ -228,10 +221,20 @@ export default function FaceDetectorComponent() {
 
             if (result) {
 
+              // 🔥 LOCK DE IDENTIDADE (ANTI-RACE)
+              if (processingStudents.current.has(result.id)) {
+                return resolve();
+              }
+
+              processingStudents.current.add(result.id);
+
               const exists = Array.from(faceToStudent.current.values())
                 .includes(result.id);
 
-              if (exists) return resolve();
+              if (exists) {
+                processingStudents.current.delete(result.id);
+                return resolve();
+              }
 
               face.recognized = true;
               face.studentId = result.id;
@@ -239,6 +242,8 @@ export default function FaceDetectorComponent() {
               face.lastRecognizedAt = Date.now();
 
               faceToStudent.current.set(face.id, result.id);
+
+              processingStudents.current.delete(result.id);
 
               console.log("✅ Reconhecido:", result.nome);
             }
@@ -259,7 +264,6 @@ export default function FaceDetectorComponent() {
       if (isProcessing.current) return;
       if (faceQueue.current.length === 0) return;
 
-      // RATE LIMIT GLOBAL
       if (now - lastApiCall.current < API_INTERVAL) return;
 
       const face = faceQueue.current.shift();
