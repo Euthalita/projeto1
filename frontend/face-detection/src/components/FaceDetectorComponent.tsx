@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import { recognizeFace } from "../api/faceRecognitionApi";
+import { enqueueAttendance, startQueueProcessor } from "../api/attendanceEvent";
 
 type TrackedFace = {
   id: string;
@@ -25,9 +26,13 @@ export default function FaceDetectorComponent() {
   const faceQueue = useRef<TrackedFace[]>([]);
 
   const faceToStudent = useRef<Map<string, string>>(new Map());
-  const studentPresence = useRef<Map<string, number>>(new Map());
+  const activeStudents = useRef<Set<string>>(new Set());
+  const processingStudents = useRef<Set<string>>(new Set());
 
-  const processingStudents = useRef<Set<string>>(new Set()); // 🔥 anti-duplicação
+  // NOVOS CONTROLES
+  const studentLastSeen = useRef<Map<string, number>>(new Map());
+  const exitCandidates = useRef<Map<string, number>>(new Map());
+  const recentlyExited = useRef<Map<string, number>>(new Map());
 
   const isProcessing = useRef(false);
   const lastDetectionTime = useRef(0);
@@ -41,6 +46,11 @@ export default function FaceDetectorComponent() {
   const TRACK_TOLERANCE = 6000;
   const MAX_QUEUE = 6;
 
+  // NOVOS PARAMETROS
+  const EXIT_DELAY = 5000;
+  const RECONNECT_WINDOW = 10000;
+  const LOCK_DURATION = 60000;
+
   useEffect(() => {
 
     let detector: FaceDetector;
@@ -50,7 +60,9 @@ export default function FaceDetectorComponent() {
     const init = async () => {
       detector = await initDetector();
       await initCamera();
+      startQueueProcessor(); 
       startDetection();
+
       queueInterval = setInterval(processQueue, 1200);
     };
 
@@ -103,24 +115,12 @@ export default function FaceDetectorComponent() {
         let matched = false;
 
         for (let face of trackedFaces.current) {
-          if (face.locked && isSameFace(face.box, box)) {
+          if (isSameFace(face.box, box)) {
             face.box = box;
             face.lastSeen = now;
             updated.push(face);
             matched = true;
             break;
-          }
-        }
-
-        if (!matched) {
-          for (let face of trackedFaces.current) {
-            if (!face.locked && isSameFace(face.box, box)) {
-              face.box = box;
-              face.lastSeen = now;
-              updated.push(face);
-              matched = true;
-              break;
-            }
           }
         }
 
@@ -139,9 +139,7 @@ export default function FaceDetectorComponent() {
     };
 
     const calculatePriority = (face: TrackedFace) => {
-
       let score = 0;
-
       const video = videoRef.current;
       if (!video) return 0;
 
@@ -159,9 +157,6 @@ export default function FaceDetectorComponent() {
       if (!face.recognized) score += 300;
       if (face.locked) score -= 200;
 
-      const timeSinceSeen = Date.now() - face.lastSeen;
-      score += Math.min(timeSinceSeen / 20, 100);
-
       return score;
     };
 
@@ -171,7 +166,6 @@ export default function FaceDetectorComponent() {
     };
 
     const enqueueFace = (face: TrackedFace) => {
-
       if (faceQueue.current.length >= MAX_QUEUE) return;
       if (!shouldRecognizeFace(face)) return;
 
@@ -216,25 +210,15 @@ export default function FaceDetectorComponent() {
           if (!blob) return resolve();
 
           try {
-
             const result = await recognizeFace(blob);
 
             if (result) {
 
-              // 🔥 LOCK DE IDENTIDADE (ANTI-RACE)
               if (processingStudents.current.has(result.id)) {
                 return resolve();
               }
 
               processingStudents.current.add(result.id);
-
-              const exists = Array.from(faceToStudent.current.values())
-                .includes(result.id);
-
-              if (exists) {
-                processingStudents.current.delete(result.id);
-                return resolve();
-              }
 
               face.recognized = true;
               face.studentId = result.id;
@@ -243,9 +227,25 @@ export default function FaceDetectorComponent() {
 
               faceToStudent.current.set(face.id, result.id);
 
-              processingStudents.current.delete(result.id);
+              // 🔥 RECONEXÃO
+              const lastExit = recentlyExited.current.get(result.id);
 
-              console.log("✅ Reconhecido:", result.nome);
+              if (lastExit && Date.now() - lastExit < RECONNECT_WINDOW) {
+                console.log("♻️ Reconectou:", result.id);
+                recentlyExited.current.delete(result.id);
+              } else {
+                if (!activeStudents.current.has(result.id)) {
+                  activeStudents.current.add(result.id);
+
+                  enqueueAttendance({
+                    type: "ENTER",
+                    studentId: result.id,
+                    timestamp: new Date().toISOString(),
+                  });
+                }
+              }
+
+              processingStudents.current.delete(result.id);
             }
 
           } catch (err) {
@@ -258,12 +258,10 @@ export default function FaceDetectorComponent() {
     };
 
     const processQueue = async () => {
-
       const now = Date.now();
 
       if (isProcessing.current) return;
       if (faceQueue.current.length === 0) return;
-
       if (now - lastApiCall.current < API_INTERVAL) return;
 
       const face = faceQueue.current.shift();
@@ -277,13 +275,45 @@ export default function FaceDetectorComponent() {
       isProcessing.current = false;
     };
 
-    const updatePresence = () => {
+    const handleFaceExit = () => {
+
+      const currentStudents = new Set<string>();
+
       trackedFaces.current.forEach((face) => {
         const studentId = faceToStudent.current.get(face.id);
 
         if (studentId && face.locked) {
-          const prev = studentPresence.current.get(studentId) || 0;
-          studentPresence.current.set(studentId, prev + DETECTION_INTERVAL);
+          currentStudents.add(studentId);
+          studentLastSeen.current.set(studentId, Date.now());
+          exitCandidates.current.delete(studentId);
+        }
+      });
+
+      activeStudents.current.forEach((studentId) => {
+
+        if (!currentStudents.has(studentId)) {
+
+          if (!exitCandidates.current.has(studentId)) {
+            exitCandidates.current.set(studentId, Date.now());
+          }
+
+          const firstMissing = exitCandidates.current.get(studentId)!;
+
+          if (Date.now() - firstMissing > EXIT_DELAY) {
+
+            activeStudents.current.delete(studentId);
+            recentlyExited.current.set(studentId, Date.now());
+
+            enqueueAttendance({
+              type: "EXIT",
+              studentId,
+              timestamp: new Date().toISOString(),
+            });
+
+            exitCandidates.current.delete(studentId);
+
+            console.log("🚪 Saiu:", studentId);
+          }
         }
       });
     };
@@ -328,9 +358,17 @@ export default function FaceDetectorComponent() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
           updateTracking(faces);
-          updatePresence();
+          handleFaceExit();
 
           trackedFaces.current.forEach((face) => {
+
+            // 🔥 libera lock depois de tempo
+            if (face.locked && face.lastRecognizedAt) {
+              if (Date.now() - face.lastRecognizedAt > LOCK_DURATION) {
+                face.locked = false;
+              }
+            }
+
             drawBox(ctx, face);
             enqueueFace(face);
           });
