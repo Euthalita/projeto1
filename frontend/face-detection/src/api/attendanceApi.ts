@@ -1,7 +1,5 @@
 import { api } from "./api";
 
-// Tipos separados (mais seguro e profissional)
-
 export type EnterEvent = {
   type: "ENTER";
   studentId: string;
@@ -17,7 +15,6 @@ export type ExitEvent = {
 
 export type AttendanceEvent = EnterEvent | ExitEvent;
 
-// 🔥 Função principal (batch)
 export const enqueueAttendance = async (events: AttendanceEvent[]) => {
   try {
     const response = await api.post("/attendance", events);

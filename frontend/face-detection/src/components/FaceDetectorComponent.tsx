@@ -29,7 +29,6 @@ export default function FaceDetectorComponent() {
   const activeStudents = useRef<Set<string>>(new Set());
   const processingStudents = useRef<Set<string>>(new Set());
 
-  // NOVOS CONTROLES
   const studentLastSeen = useRef<Map<string, number>>(new Map());
   const exitCandidates = useRef<Map<string, number>>(new Map());
   const recentlyExited = useRef<Map<string, number>>(new Map());
@@ -46,7 +45,6 @@ export default function FaceDetectorComponent() {
   const TRACK_TOLERANCE = 6000;
   const MAX_QUEUE = 6;
 
-  // NOVOS PARAMETROS
   const EXIT_DELAY = 5000;
   const RECONNECT_WINDOW = 10000;
   const LOCK_DURATION = 60000;
@@ -227,7 +225,6 @@ export default function FaceDetectorComponent() {
 
               faceToStudent.current.set(face.id, result.id);
 
-              // 🔥 RECONEXÃO
               const lastExit = recentlyExited.current.get(result.id);
 
               if (lastExit && Date.now() - lastExit < RECONNECT_WINDOW) {
@@ -362,7 +359,6 @@ export default function FaceDetectorComponent() {
 
           trackedFaces.current.forEach((face) => {
 
-            // 🔥 libera lock depois de tempo
             if (face.locked && face.lastRecognizedAt) {
               if (Date.now() - face.lastRecognizedAt > LOCK_DURATION) {
                 face.locked = false;
