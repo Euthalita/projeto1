@@ -39,8 +39,8 @@ export const processQueue = async () => {
   queue = [];
 
   try {
-    await sendBatch(batch); // 🔥 agora envia array corretamente
-    console.log("📤 Eventos enviados:", batch.length);
+    await sendBatch(batch); // agora envia array corretamente
+    console.log("Eventos enviados:", batch.length);
   } catch (error) {
     console.error("Erro ao processar fila:", error);
 

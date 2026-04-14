@@ -22,7 +22,7 @@ public class TurmaService {
         this.turmaRepository = turmaRepository;
     }
 
-    // ✅ CRIAR
+    // CRIAR
     public TurmaResponseDTO criarTurma(TurmaDTO dto) {
 
         Turma turma = new Turma();
@@ -56,7 +56,7 @@ public class TurmaService {
         return converterParaResponseDTO(salva);
     }
 
-    // ✅ LISTAR TODAS
+    // LISTAR TODAS
     public List<TurmaResponseDTO> listarTodas() {
 
         return turmaRepository.findAll()
@@ -65,7 +65,7 @@ public class TurmaService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ BUSCAR POR ID
+    // BUSCAR POR ID
     public TurmaResponseDTO buscarPorId(Long id) {
 
         Turma turma = turmaRepository.findById(id)
@@ -74,7 +74,7 @@ public class TurmaService {
         return converterParaResponseDTO(turma);
     }
 
-    // ✅ ATUALIZAR
+    // ATUALIZAR
     public TurmaResponseDTO atualizar(Long id, TurmaDTO dto) {
 
         Turma turma = turmaRepository.findById(id)
@@ -109,7 +109,7 @@ public class TurmaService {
         return converterParaResponseDTO(atualizada);
     }
 
-    // ✅ DELETAR
+    // DELETAR
     public void deletar(Long id) {
 
         Turma turma = turmaRepository.findById(id)
@@ -118,7 +118,7 @@ public class TurmaService {
         turmaRepository.delete(turma);
     }
 
-    // 🔥 MÉTODO PRIVADO PARA CONVERSÃO
+    // MÉTODO PRIVADO PARA CONVERSÃO
     private TurmaResponseDTO converterParaResponseDTO(Turma turma) {
 
         TurmaResponseDTO response = new TurmaResponseDTO();
