@@ -79,7 +79,6 @@ export default function TurmaDetalhe() {
       }}
     >
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
-        {/* INFO TURMA */}
         <h2>{turma.nome}</h2>
 
         <p><strong>Código:</strong> {turma.codigo}</p>
@@ -126,7 +125,6 @@ export default function TurmaDetalhe() {
           ))
         )}
 
-        {/* ADICIONAR ALUNO */}
         <h3 style={{ marginTop: 20 }}>Adicionar aluno</h3>
 
         {todosAlunos.map((a) => (

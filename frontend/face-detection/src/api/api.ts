@@ -9,10 +9,9 @@ export const api = axios.create({
   },
 });
 
-// INTERCEPTOR DE REQUEST (antes de enviar)
 api.interceptors.request.use(
   (config) => {
-    // Exemplo: adicionar token futuramente
+    //adicionar token futuramente
     // const token = localStorage.getItem("token");
     // if (token) config.headers.Authorization = `Bearer ${token}`;
 
@@ -21,7 +20,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// INTERCEPTOR DE RESPONSE (tratamento global de erro)
 api.interceptors.response.use(
   (response) => response,
   (error) => {

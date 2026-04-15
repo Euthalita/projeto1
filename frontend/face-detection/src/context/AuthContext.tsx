@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const data = await response.json();
 
-      // 🔥 esperado do backend:
+      // esperado do backend:
       // { userExists: boolean, role: "STUDENT" | "TEACHER" }
 
       if (data.userExists) {

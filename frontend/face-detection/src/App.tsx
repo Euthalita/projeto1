@@ -34,14 +34,11 @@ export default function App() {
 
   return (
     <Routes>
-      {/* LOGIN */}
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
 
-      {/* CADASTRO */}
       <Route path="/cadastro/:matricula" element={<CadastroAluno />} />
 
-      {/* STUDENT */}
       <Route
         path="/student"
         element={
@@ -52,7 +49,6 @@ export default function App() {
         }
       />
 
-      {/* TEACHER DASHBOARD */}
       <Route
         path="/teacher"
         element={
@@ -63,7 +59,6 @@ export default function App() {
         }
       />
 
-      {/* ROTAS DE TURMAS (PROFESSOR) */}
       <Route
         path="/turmas"
         element={
