@@ -7,9 +7,8 @@ public class AttendanceEventDTO {
     private String type; // ENTER ou EXIT
     private String studentId;
     private LocalDateTime timestamp;
-    private Double confidence; // opcional
+    private Double confidence; 
 
-    // getters e setters
     public String getType() {
         return type;
     }

@@ -1,15 +1,17 @@
 import { Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 
-import CadastroAluno from "./pages/CadastroAluno";
+import CadastroAluno from "./pages/auth/CadastroAluno";
 import FaceDetectorComponent from "./components/FaceDetectorComponent";
-import Login from "./pages/Login";
+import Login from "./pages/auth/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { Navbar } from "./components/Navbar";
 
 import { startQueueProcessor } from "./api/attendanceEvent";
 
-// layout reutilizável
+import StudentHome from "./pages/student/StudentHome";
+import TeacherHome from "./pages/teacher/TeacherHome";
+
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
@@ -22,30 +24,38 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-
-  // inicia fila global (ESSENCIAL)
   useEffect(() => {
     startQueueProcessor();
   }, []);
 
   return (
     <Routes>
-
-      {/* LOGIN */}
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
 
-      {/* CADASTRO */}
+      {/* cadastro NÃO protegido */}
+      <Route path="/cadastro/:matricula" element={<CadastroAluno />} />
+
       <Route
-        path="/cadastro/:matricula"
+        path="/student"
         element={
-          <ProtectedLayout>
-            <CadastroAluno />
-          </ProtectedLayout>
+          <ProtectedRoute role="STUDENT">
+            <Navbar />
+            <StudentHome />
+          </ProtectedRoute>
         }
       />
 
-      {/* CHAMADA (FACE RECOGNITION) */}
+      <Route
+        path="/teacher"
+        element={
+          <ProtectedRoute role="TEACHER">
+            <Navbar />
+            <TeacherHome />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/chamada"
         element={
@@ -55,9 +65,7 @@ export default function App() {
         }
       />
 
-      {/* FALLBACK */}
       <Route path="*" element={<h1>Página não encontrada</h1>} />
-
     </Routes>
   );
 }

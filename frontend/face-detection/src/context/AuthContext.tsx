@@ -1,44 +1,71 @@
-import { createContext, useContext, useState} from "react";
-import type { ReactNode } from 'react';
-import { api } from "../api/api";
+import { createContext, useContext, useState, useEffect } from "react";
 
-interface AuthContextProps {
-  user: string | null;
-  loginUser: (matricula: string, senha: string) => Promise<boolean>;
+type User = {
+  matricula: string;
+  role: "STUDENT" | "TEACHER";
+};
+
+type LoginResult = {
+  success: boolean;
+  userExists?: boolean;
+  role?: "STUDENT" | "TEACHER";
+};
+
+type AuthContextType = {
+  user: User | null;
+  loginUser: (matricula: string, senha: string) => Promise<LoginResult>;
   logout: () => void;
-}
+};
 
-const AuthContext = createContext<AuthContextProps>({} as AuthContextProps);
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-interface AuthProviderProps {
-  children: ReactNode; 
-}
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<string | null>(() => {
-    return localStorage.getItem("user") || null;
-  });
+  // mantém login após refresh
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      setUser(JSON.parse(stored));
+    }
+  }, []);
 
-  const loginUser = async (matricula: string, senha: string) => {
+  const loginUser = async (
+    matricula: string,
+    senha: string
+  ): Promise<LoginResult> => {
     try {
-      const response = await api.post(
-        "/auth/api/login",
-        { matricula, senha },
-        { responseType: "text" } 
-      );
+      const response = await fetch("http://localhost:8080/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ matricula, senha }),
+      });
 
-      console.log("Resposta backend:", response.data);
+      const data = await response.json();
 
-      if (response.status === 200) {
-        setUser(matricula);
-        localStorage.setItem("user", matricula);
-        return true;
+      // 🔥 esperado do backend:
+      // { userExists: boolean, role: "STUDENT" | "TEACHER" }
+
+      if (data.userExists) {
+        const userData = {
+          matricula,
+          role: data.role,
+        };
+
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
       }
 
-      return false;
-    } catch (err: any) {
-      console.error("Erro login:", err.response?.data || err.message);
-      return false;
+      return {
+        success: true,
+        userExists: data.userExists,
+        role: data.role,
+      };
+    } catch (error) {
+      console.error("Erro no login:", error);
+      return { success: false };
     }
   };
 

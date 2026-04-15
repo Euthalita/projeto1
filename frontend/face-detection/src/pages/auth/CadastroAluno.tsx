@@ -3,9 +3,9 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { FaceDetector, FilesetResolver} from "@mediapipe/tasks-vision";
-import { api } from "../api/api";
+import { api } from "../../api/api";
 
 export default function CadastroAluno() {
 

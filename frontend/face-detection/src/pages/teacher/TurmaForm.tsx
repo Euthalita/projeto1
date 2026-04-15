@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { useNavigate, useParams } from "react-router-dom";
-import { criarTurma, atualizarTurma, listarTurmas } from "../api/turmaService";
+import { criarTurma, atualizarTurma, listarTurmas } from "../../api/turmaService";
 
 export default function TurmaForm() {
   const { id } = useParams();
