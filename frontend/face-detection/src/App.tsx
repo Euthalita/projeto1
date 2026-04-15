@@ -12,6 +12,10 @@ import { startQueueProcessor } from "./api/attendanceEvent";
 import StudentHome from "./pages/student/StudentHome";
 import TeacherHome from "./pages/teacher/TeacherHome";
 
+import TurmasList from "./pages/teacher/TurmasList";
+import TurmaDetalhe from "./pages/teacher/TurmaDetalhe";
+import TurmaForm from "./pages/teacher/TurmaForm";
+
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
@@ -30,12 +34,14 @@ export default function App() {
 
   return (
     <Routes>
+      {/* LOGIN */}
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
 
-      {/* cadastro NÃO protegido */}
+      {/* CADASTRO */}
       <Route path="/cadastro/:matricula" element={<CadastroAluno />} />
 
+      {/* STUDENT */}
       <Route
         path="/student"
         element={
@@ -46,6 +52,7 @@ export default function App() {
         }
       />
 
+      {/* TEACHER DASHBOARD */}
       <Route
         path="/teacher"
         element={
@@ -56,6 +63,48 @@ export default function App() {
         }
       />
 
+      {/* ROTAS DE TURMAS (PROFESSOR) */}
+      <Route
+        path="/turmas"
+        element={
+          <ProtectedRoute role="TEACHER">
+            <Navbar />
+            <TurmasList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/turmas/nova"
+        element={
+          <ProtectedRoute role="TEACHER">
+            <Navbar />
+            <TurmaForm />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/turmas/editar/:id"
+        element={
+          <ProtectedRoute role="TEACHER">
+            <Navbar />
+            <TurmaForm />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/turmas/:id"
+        element={
+          <ProtectedRoute role="TEACHER">
+            <Navbar />
+            <TurmaDetalhe />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* CHAMADA (RECONHECIMENTO) */}
       <Route
         path="/chamada"
         element={
@@ -65,6 +114,7 @@ export default function App() {
         }
       />
 
+      {/* FALLBACK */}
       <Route path="*" element={<h1>Página não encontrada</h1>} />
     </Routes>
   );
