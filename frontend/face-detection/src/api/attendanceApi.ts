@@ -1,26 +1,26 @@
 import { api } from "./api";
 
-export type EnterEvent = {
-  type: "ENTER";
+export type AttendanceEvent = {
+  type: "ENTER" | "EXIT";
   studentId: string;
-  timestamp: string;
-  confidence?: number;
-};
-
-export type ExitEvent = {
-  type: "EXIT";
-  studentId: string;
+  classId: string;
   timestamp: string;
 };
 
-export type AttendanceEvent = EnterEvent | ExitEvent;
-
-export const enqueueAttendance = async (events: AttendanceEvent[]) => {
+export const sendAttendanceBatch = async (events: AttendanceEvent[]) => {
   try {
-    const response = await api.post("/attendance", events);
-    return response.data;
+    const response = await api.post("/attendance", events, {
+      timeout: 5000
+    });
+
+    return response?.data ?? null;
+
   } catch (error) {
-    console.error("Erro ao enviar eventos de presença:", error);
+    console.error("❌ Erro ao enviar eventos:", {
+      error,
+      events
+    });
+
     throw error;
   }
 };

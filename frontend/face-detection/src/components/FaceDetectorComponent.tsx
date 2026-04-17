@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import { recognizeFace } from "../api/faceRecognitionApi";
 import { enqueueAttendance, startQueueProcessor } from "../api/attendanceEvent";
+import { useSearchParams } from "react-router-dom";
 
 type TrackedFace = {
   id: string;
@@ -18,6 +19,9 @@ type TrackedFace = {
 
 export default function FaceDetectorComponent() {
 
+  const [searchParams] = useSearchParams();
+  const classId = searchParams.get("classId");
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -50,6 +54,11 @@ export default function FaceDetectorComponent() {
   const LOCK_DURATION = 60000;
 
   useEffect(() => {
+
+    if (!classId) {
+      console.warn("❌ classId não informado");
+      return;
+    }
 
     let detector: FaceDetector;
     let animationId: number;
@@ -237,6 +246,7 @@ export default function FaceDetectorComponent() {
                   enqueueAttendance({
                     type: "ENTER",
                     studentId: result.id,
+                    classId: classId,
                     timestamp: new Date().toISOString(),
                   });
                 }
@@ -300,13 +310,6 @@ export default function FaceDetectorComponent() {
 
             activeStudents.current.delete(studentId);
             recentlyExited.current.set(studentId, Date.now());
-
-            enqueueAttendance({
-              type: "EXIT",
-              studentId,
-              timestamp: new Date().toISOString(),
-            });
-
             exitCandidates.current.delete(studentId);
 
             console.log("🚪 Saiu:", studentId);

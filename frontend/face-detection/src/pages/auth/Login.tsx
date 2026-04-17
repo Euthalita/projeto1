@@ -12,33 +12,35 @@ export default function Login() {
   const navigate = useNavigate();
   const { loginUser } = useAuth();
 
-  const handleLogin = async () => {
-    const result = await loginUser(matricula, senha);
+const [loading, setLoading] = useState(false);
 
-    if (!result.success) {
-      alert("Erro ao fazer login");
-      return;
-    }
+const handleLogin = async () => {
+  setLoading(true);
 
-    // NÃO CADASTRADO
-    if (!result.userExists) {
-      navigate(`/cadastro/${matricula}`);
-      return;
-    }
+  const result = await loginUser(matricula, senha);
 
-    // ALUNO
-    if (result.role === "STUDENT") {
-      navigate("/student");
-      return;
-    }
+  setLoading(false);
 
-    // PROFESSOR
-    if (result.role === "TEACHER") {
-      navigate("/teacher");
-      return;
-    }
-  };
+  if (!result.success) {
+    alert("Erro ao fazer login");
+    return;
+  }
 
+  if (!result.userExists) {
+    navigate(`/cadastro/${matricula}`);
+    return;
+  }
+
+  if (result.role?.toUpperCase() === "STUDENT") {
+    navigate("/student");
+    return;
+  }
+
+  if (result.role?.toUpperCase() === "TEACHER") {
+    navigate("/teacher");
+    return;
+  }
+};
   return (
     <div
       style={{
