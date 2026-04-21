@@ -17,8 +17,10 @@ public class AlunoCadastro {
     @Column(unique = true, nullable = false)
     private String matricula;
 
-    private String nome;
+    @Column(unique = true, nullable = false)
     private String email;
+    
+    private String nome;
     private String foto;  // caminho da foto salva em /uploads/fotos/
 
 

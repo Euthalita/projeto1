@@ -22,27 +22,21 @@ public class AuthController {
     @PostMapping("/login")
 public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
     try {
-        AlunoSiga aluno = authService.login(loginDTO);
 
-        return ResponseEntity.ok(
-            new LoginResponseDTO(
-                true,
-                true,
-                aluno.getRole(), // 🔥 AQUI VEM A ROLE
-                aluno.getMatricula()
-            )
-        );
+        LoginResponseDTO response = authService.login(loginDTO);
+
+        return ResponseEntity.ok(response);
 
     } catch (RuntimeException e) {
 
-        // usuário não encontrado
-        return ResponseEntity.ok(
+        return ResponseEntity.status(401).body(
             new LoginResponseDTO(
-                true,
+                false,
                 false,
                 null,
-                loginDTO.getMatricula()
+                loginDTO.getEmail()
             )
         );
     }
+}
 }

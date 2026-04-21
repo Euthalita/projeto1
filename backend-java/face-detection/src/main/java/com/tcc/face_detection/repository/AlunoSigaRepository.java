@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.tcc.face_detection.model.AlunoSiga;
 
 public interface AlunoSigaRepository extends JpaRepository<AlunoSiga, Long> {
-    Optional<AlunoSiga> findByMatricula(String matricula);
+    Optional<AlunoSiga> findByEmail(String email);
 }

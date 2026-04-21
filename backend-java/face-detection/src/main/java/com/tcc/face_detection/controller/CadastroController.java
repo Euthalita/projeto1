@@ -29,42 +29,54 @@ public class CadastroController {
         this.pythonService = pythonService;
     }
 
-    // Agora consumindo JSON
-    @PostMapping(value = "/{matricula}", consumes = MediaType.APPLICATION_JSON_VALUE)
-public ResponseEntity<?> cadastrar(
-        @PathVariable String matricula,
-        @RequestBody CadastroDTO cadastroDTO) {
+    // CADASTRO DO ALUNO
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> cadastrar(@RequestBody CadastroDTO cadastroDTO) {
 
-    try {
+        try {
 
-        // Valida imagem com Python
-        String fotoBase64 = cadastroDTO.getFotoBase64();
-        if (fotoBase64 == null || fotoBase64.isEmpty()) {
+            // valida se enviou foto
+            String fotoBase64 = cadastroDTO.getFotoBase64();
+            if (fotoBase64 == null || fotoBase64.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Foto não enviada."));
+            }
+
+            // valida imagem com Python
+            boolean valido = pythonService.validarImagemBase64(fotoBase64);
+            if (!valido) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Imagem inválida ou não é uma pessoa real."));
+            }
+
+            // salva cadastro
+            AlunoCadastro aluno = alunoService.cadastrarAluno(cadastroDTO);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Cadastro realizado com sucesso",
+                    "email", aluno.getEmail()
+            ));
+
+        } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Foto não enviada."));
+                    .body(Map.of("message", e.getMessage()));
         }
-
-        boolean valido = pythonService.validarImagemBase64(fotoBase64);
-        if (!valido) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Imagem inválida ou não é uma pessoa real."));
-        }
-
-        // Se passou na validação, salva no servidor
-        AlunoCadastro aluno = alunoService.atualizarCadastro(matricula, cadastroDTO);
-        return ResponseEntity.ok(aluno);
-
-    } catch (Exception e) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("message", e.getMessage()));
-    }
-}
-
-    @GetMapping("/siga/alunos/{matricula}")
-    public ResponseEntity<?> buscarCadastro(@PathVariable String matricula) {
-        Optional<AlunoCadastro> alunoOpt = alunoService.findByMatricula(matricula);
-        return alunoOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
     }
 
+    // CONSULTAR SE JÁ TEM CADASTRO
+    @GetMapping("/{email}")
+    public ResponseEntity<?> buscarCadastro(@PathVariable String email) {
+        Optional<AlunoCadastro> alunoOpt = alunoService.findByEmail(email);
+
+        if (alunoOpt.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                    "cadastrado", false
+            ));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "cadastrado", true,
+                "dados", alunoOpt.get()
+        ));
+    }
 }
