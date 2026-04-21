@@ -25,7 +25,7 @@ public class AuthService {
 
     public LoginResponseDTO login(LoginDTO dto) {
 
-        // 🔐 validações básicas
+        // validações básicas
         if (dto.getEmail() == null || dto.getEmail().isEmpty()) {
             throw new RuntimeException("Email é obrigatório");
         }
@@ -34,21 +34,21 @@ public class AuthService {
             throw new RuntimeException("Senha é obrigatória");
         }
 
-        // 🔍 busca no SIGA
+        // busca no SIGA
         AlunoSiga aluno = alunoSigaRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        // 🔒 valida senha (SIGA)
+        // valida senha (SIGA)
         if (!aluno.getSenha().equals(dto.getSenha())) {
             throw new RuntimeException("Senha inválida");
         }
 
-        // 🔍 verifica se já tem cadastro facial
+        // verifica se já tem cadastro facial
         Optional<AlunoCadastro> cadastro = alunoCadastroRepository.findByEmail(dto.getEmail());
 
         boolean temCadastro = cadastro.isPresent();
 
-        // 🎯 monta resposta
+        // monta resposta
         return new LoginResponseDTO(
                 true,                  // login válido
                 temCadastro,           // já fez cadastro?

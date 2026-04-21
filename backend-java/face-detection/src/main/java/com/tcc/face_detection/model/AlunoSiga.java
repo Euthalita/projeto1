@@ -22,8 +22,8 @@ public class AlunoSiga {
     private String senha;
 
     @Column(nullable = false)
-    private String role; // 🔥 NOVO CAMPO
-
+    private String role; 
+    
     @Column(nullable = false)
     private String nome;
 

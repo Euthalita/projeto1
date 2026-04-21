@@ -33,7 +33,7 @@ public class AlunoService {
 
     public AlunoCadastro cadastrarAluno(CadastroDTO dto) throws IOException {
 
-    // 🔐 VALIDAÇÕES BÁSICAS
+    //  VALIDAÇÕES BÁSICAS
     if (dto.getEmail() == null || dto.getEmail().isEmpty()) {
         throw new RuntimeException("Email é obrigatório");
     }
@@ -46,38 +46,38 @@ public class AlunoService {
         throw new RuntimeException("Matrícula é obrigatória");
     }
 
-    // 🔍 BUSCA NO "SIGA"
+    // BUSCA NO "SIGA"
     AlunoSiga alunoSiga = alunoSigaRepository.findByEmail(dto.getEmail())
             .orElseThrow(() -> new RuntimeException("Email não encontrado no SIGA"));
 
-    // 🔒 GARANTE QUE É ALUNO
+    // GARANTE QUE É ALUNO
     if (!"ALUNO".equalsIgnoreCase(alunoSiga.getRole())) {
         throw new RuntimeException("Apenas alunos podem se cadastrar");
     }
 
-    // 🔍 VALIDA NOME
+    // VALIDA NOME
     if (!alunoSiga.getNome().equalsIgnoreCase(dto.getNome())) {
         throw new RuntimeException("Nome não confere com o SIGA");
     }
 
-    // 🔍 VALIDA MATRÍCULA
+    // VALIDA MATRÍCULA
     if (!alunoSiga.getMatricula().equals(dto.getMatricula())) {
         throw new RuntimeException("Matrícula não confere com o SIGA");
     }
 
-    // ❌ JÁ POSSUI CADASTRO
+    // JÁ POSSUI CADASTRO
     Optional<AlunoCadastro> existing = alunoCadastroRepository.findByEmail(dto.getEmail());
     if (existing.isPresent()) {
         throw new RuntimeException("Aluno já possui cadastro");
     }
 
-    // 🧱 CRIA CADASTRO
+    // CRIA CADASTRO
     AlunoCadastro aluno = new AlunoCadastro();
     aluno.setNome(dto.getNome());
     aluno.setEmail(dto.getEmail());
     aluno.setMatricula(dto.getMatricula());
 
-    // 📸 FOTO
+    // FOTO
     String fotoBase64 = dto.getFotoBase64();
     if (fotoBase64 != null && !fotoBase64.isEmpty()) {
 
