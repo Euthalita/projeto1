@@ -22,7 +22,7 @@ public class AlunoCadastro {
     
     private String nome;
     private String foto;  // caminho da foto salva em /uploads/fotos/
-
+    private String role;  // "STUDENT" ou "TEACHER"
 
     public Long getId() {
         return id;
@@ -64,4 +64,11 @@ public class AlunoCadastro {
         this.foto = foto;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
 }

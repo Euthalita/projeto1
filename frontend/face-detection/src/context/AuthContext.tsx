@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
 type User = {
-  matricula: string;
+  email: string;
   role: "STUDENT" | "TEACHER";
 };
 
@@ -9,11 +9,12 @@ type LoginResult = {
   success: boolean;
   userExists?: boolean;
   role?: "STUDENT" | "TEACHER";
+  message?: string;
 };
 
 type AuthContextType = {
   user: User | null;
-  loginUser: (matricula: string, senha: string) => Promise<LoginResult>;
+  loginUser: (email: string, senha: string) => Promise<LoginResult>;
   logout: () => void;
 };
 
@@ -31,26 +32,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const loginUser = async (
-    matricula: string,
+    email: string,
     senha: string
   ): Promise<LoginResult> => {
     try {
-      const response = await fetch("http://localhost:8080/login", {
+      const response = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ matricula, senha }),
+        body: JSON.stringify({ email, senha }),
       });
+
+      // 🔴 trata erro HTTP
+      if (!response.ok) {
+  let message = "Erro no login";
+
+  try {
+    const errorData = await response.json();
+    message = errorData.message || message;
+  } catch {
+    // resposta não veio em JSON
+    if (response.status === 401) {
+      message = "Senha inválida";
+    } else if (response.status === 404) {
+      message = "Aluno não encontrado no SIGA";
+    }
+  }
+
+  return {
+    success: false,
+    message,
+  };
+}
 
       const data = await response.json();
 
-      // esperado do backend:
-      // { userExists: boolean, role: "STUDENT" | "TEACHER" }
-
-      if (data.userExists) {
-        const userData = {
-          matricula,
+      // salva usuário só se tiver cadastro
+      if (data.temCadastro) {
+        const userData: User = {
+          email: data.email,
           role: data.role,
         };
 
@@ -59,13 +80,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       return {
-        success: true,
-        userExists: data.userExists,
-        role: data.role,
-      };
+  success: true,
+  userExists: data.temCadastro,
+  role: data.role,
+};
     } catch (error) {
       console.error("Erro no login:", error);
-      return { success: false };
+      return {
+        success: false,
+        message: "Erro ao conectar com o servidor",
+      };
     }
   };
 

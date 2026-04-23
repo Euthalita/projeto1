@@ -1,25 +1,18 @@
 import { api } from "./api";
 
-export const atualizarCadastro = async (
-  matricula: string,
-  data: {
-    nome: string;
-    email: string;
-    fotoBase64: string;
-  }
-) => {
-  const response = await api.post(
-    `/api/cadastro/${matricula}`,
-    data
-  );
-
+// CADASTRAR aluno
+export const cadastrarAluno = async (data: {
+  nome: string;
+  email: string;
+  matricula: string;
+  fotoBase64: string;
+}) => {
+  const response = await api.post("/api/cadastro", data);
   return response.data;
 };
 
-export const buscarCadastro = async (matricula: string) => {
-  const response = await api.get(
-    `/api/cadastro/siga/alunos/${matricula}`
-  );
-
+// VERIFICAR se já existe cadastro (login flow)
+export const verificarCadastro = async (email: string) => {
+  const response = await api.get(`/api/cadastro/${email}`);
   return response.data;
 };

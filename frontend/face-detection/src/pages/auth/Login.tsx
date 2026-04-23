@@ -6,41 +6,48 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
-  const [matricula, setMatricula] = useState("");
+  const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const { loginUser } = useAuth();
 
-const [loading, setLoading] = useState(false);
+  const handleLogin = async () => {
+    if (!email || !senha) {
+      alert("Preencha email e senha");
+      return;
+    }
 
-const handleLogin = async () => {
-  setLoading(true);
+    setLoading(true);
 
-  const result = await loginUser(matricula, senha);
+    const result = await loginUser(email, senha);
 
-  setLoading(false);
+    setLoading(false);
 
-  if (!result.success) {
-    alert("Erro ao fazer login");
-    return;
-  }
+    if (!result.success) {
+  alert(result.message || "Email ou senha inválidos");
+  return;
+}
 
-  if (!result.userExists) {
-    navigate(`/cadastro/${matricula}`);
-    return;
-  }
 
-  if (result.role?.toUpperCase() === "STUDENT") {
-    navigate("/student");
-    return;
-  }
+    // NÃO TEM CADASTRO → vai cadastrar
+    if (!result.userExists) {
+      navigate(`/cadastro?email=${email}`);
+      return;
+    }
 
-  if (result.role?.toUpperCase() === "TEACHER") {
-    navigate("/teacher");
-    return;
-  }
-};
+    // TEM CADASTRO → segue fluxo normal
+    if (result.role?.toUpperCase() === "STUDENT") {
+      navigate("/student");
+      return;
+    }
+
+    if (result.role?.toUpperCase() === "TEACHER") {
+      navigate("/teacher");
+      return;
+    }
+  };
   return (
     <div
       style={{
@@ -63,11 +70,11 @@ const handleLogin = async () => {
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label>Matrícula</label>
+            <label>Email</label>
             <InputText
-              value={matricula}
+              value={email}
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setMatricula(e.target.value)
+                setEmail(e.target.value)
               }
             />
 
@@ -80,7 +87,11 @@ const handleLogin = async () => {
               }
             />
 
-            <Button label="Entrar" onClick={handleLogin} />
+             <Button
+              label={loading ? "Entrando..." : "Entrar"}
+              onClick={handleLogin}
+              disabled={loading}
+            />
           </div>
         </Card>
       </div>

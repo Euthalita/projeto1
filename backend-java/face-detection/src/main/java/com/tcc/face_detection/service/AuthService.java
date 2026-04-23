@@ -17,6 +17,17 @@ public class AuthService {
     private final AlunoSigaRepository alunoSigaRepository;
     private final AlunoCadastroRepository alunoCadastroRepository;
 
+    private String normalizeRole(String role) {
+    if (role == null) return null;
+
+    String normalized = role.trim().toUpperCase();
+
+    if (normalized.equals("ALUNO")) return "STUDENT";
+    if (normalized.equals("PROFESSOR")) return "TEACHER";
+
+    return normalized;
+}
+
     public AuthService(AlunoSigaRepository alunoSigaRepository,
                        AlunoCadastroRepository alunoCadastroRepository) {
         this.alunoSigaRepository = alunoSigaRepository;
@@ -50,10 +61,10 @@ public class AuthService {
 
         // monta resposta
         return new LoginResponseDTO(
-                true,                  // login válido
-                temCadastro,           // já fez cadastro?
-                aluno.getRole(),       // ALUNO ou PROFESSOR
-                aluno.getEmail()
-        );
+    true,
+    temCadastro,
+    normalizeRole(aluno.getRole()),
+    aluno.getEmail()
+);
     }
 }

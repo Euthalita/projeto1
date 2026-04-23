@@ -17,5 +17,12 @@ export default function ProtectedRoute({
     return <Navigate to="/login" />;
   }
 
+  // 🔥 REGRA PRINCIPAL
+  if (user.role === "STUDENT") {
+    if (!user.temCadastro) {
+      return <Navigate to="/cadastro" />;
+    }
+  }
+
   return children;
 }

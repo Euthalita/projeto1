@@ -37,7 +37,7 @@ export default function App() {
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
 
-      <Route path="/cadastro/:matricula" element={<CadastroAluno />} />
+      <Route path="/cadastro" element={<CadastroAluno />} />
 
       <Route
         path="/student"
