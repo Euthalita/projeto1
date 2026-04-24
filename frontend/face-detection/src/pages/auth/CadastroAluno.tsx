@@ -134,7 +134,6 @@ export default function CadastroAluno() {
   const context = canvas.getContext("2d");
   if (!context) return;
 
-  // 🔥 FIX
   const ctx = context;
   const faceDetector = detector;
 
@@ -250,21 +249,28 @@ export default function CadastroAluno() {
   }
 
   async function enviarCadastro() {
-    if (!foto) return;
+  if (!foto) return;
 
-    setLoading(true);
-    setErroSiga("");
+  setLoading(true);
+  setErroSiga("");
 
-    try {
-      const base64 = await fileToBase64(foto);
+  try {
+    const base64 = await fileToBase64(foto);
 
-      await api.post("/api/cadastro", {
-        ...form,
-        fotoBase64: base64
-      });
+    await api.post("/api/cadastro", {
+      ...form,
+      fotoBase64: base64
+    });
 
-      alert("Cadastro realizado com sucesso!");
-      navigate("/student");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (user) {
+      user.temCadastro = true;
+      localStorage.setItem("user", JSON.stringify(user));
+    }
+
+    alert("Cadastro realizado com sucesso!");
+    navigate("/student");
 
     } catch (error: any) {
       const msg = error?.response?.data?.message || "";
@@ -285,7 +291,6 @@ export default function CadastroAluno() {
     setLoading(false);
   }
 
-  // ================= UI =================
   if (!detector) return <p>Carregando...</p>;
 
   return (

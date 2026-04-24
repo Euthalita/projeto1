@@ -26,28 +26,30 @@ export default function Login() {
     setLoading(false);
 
     if (!result.success) {
-  alert(result.message || "Email ou senha inválidos");
-  return;
-}
-
-
-    // NÃO TEM CADASTRO → vai cadastrar
-    if (!result.userExists) {
-      navigate(`/cadastro?email=${email}`);
+      alert(result.message || "Email ou senha inválidos");
       return;
     }
 
-    // TEM CADASTRO → segue fluxo normal
+    // ALUNO
     if (result.role?.toUpperCase() === "STUDENT") {
-      navigate("/student");
+      if (!result.temCadastro) {
+        navigate(`/cadastro?email=${email}`);
+      } else {
+        navigate("/student");
+      }
       return;
     }
 
+    // PROFESSOR
     if (result.role?.toUpperCase() === "TEACHER") {
       navigate("/teacher");
       return;
     }
+
+    // fallback (caso role venha errada)
+    alert("Tipo de usuário inválido");
   };
+
   return (
     <div
       style={{
@@ -87,7 +89,7 @@ export default function Login() {
               }
             />
 
-             <Button
+            <Button
               label={loading ? "Entrando..." : "Entrar"}
               onClick={handleLogin}
               disabled={loading}

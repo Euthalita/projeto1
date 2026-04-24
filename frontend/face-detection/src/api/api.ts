@@ -30,18 +30,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      console.error("❌ Erro API:", {
+      console.error("Erro API:", {
         status: error.response.status,
         data: error.response.data,
         url: error.config?.url,
         method: error.config?.method,
       });
     } else if (error.request) {
-      console.error("🌐 Sem resposta do servidor:", {
+      console.error("Sem resposta do servidor:", {
         url: error.config?.url,
       });
     } else {
-      console.error("⚙️ Erro ao configurar requisição:", error.message);
+      console.error("Erro ao configurar requisição:", error.message);
     }
 
     return Promise.reject(error);

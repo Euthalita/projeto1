@@ -1,14 +1,16 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
+// 🔥 User agora tem temCadastro
 type User = {
   email: string;
   role: "STUDENT" | "TEACHER";
+  temCadastro: boolean;
 };
 
 type LoginResult = {
   success: boolean;
-  userExists?: boolean;
-  role?: "STUDENT" | "TEACHER";
+  role?: string;
+  temCadastro?: boolean;
   message?: string;
 };
 
@@ -44,46 +46,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: JSON.stringify({ email, senha }),
       });
 
-      // 🔴 trata erro HTTP
       if (!response.ok) {
-  let message = "Erro no login";
+        let message = "Erro no login";
 
-  try {
-    const errorData = await response.json();
-    message = errorData.message || message;
-  } catch {
-    // resposta não veio em JSON
-    if (response.status === 401) {
-      message = "Senha inválida";
-    } else if (response.status === 404) {
-      message = "Aluno não encontrado no SIGA";
-    }
-  }
+        try {
+          const errorData = await response.json();
+          message = errorData.message || message;
+        } catch {
+          if (response.status === 401) {
+            message = "Senha inválida";
+          } else if (response.status === 404) {
+            message = "Aluno não encontrado no SIGA";
+          }
+        }
 
-  return {
-    success: false,
-    message,
-  };
-}
+        return {
+          success: false,
+          message,
+        };
+      }
 
       const data = await response.json();
 
-      // salva usuário só se tiver cadastro
-      if (data.temCadastro) {
-        const userData: User = {
-          email: data.email,
-          role: data.role,
-        };
+      // monta usuário corretamente
+      const userData: User = {
+        email: data.email,
+        role: data.role,
+        temCadastro: data.temCadastro,
+      };
 
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-      }
+      // salva SEMPRE (independente de ter cadastro ou não)
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
 
       return {
-  success: true,
-  userExists: data.temCadastro,
-  role: data.role,
-};
+        success: true,
+        role: data.role,
+        temCadastro: data.temCadastro,
+      };
     } catch (error) {
       console.error("Erro no login:", error);
       return {

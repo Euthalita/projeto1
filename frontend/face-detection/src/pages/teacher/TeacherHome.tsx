@@ -77,8 +77,8 @@ export default function TeacherHome() {
               <strong style={{ fontSize: "18px" }}>{t.nome}</strong>
 
               <div style={{ marginTop: 5, fontSize: "14px" }}>
-                <span>📘 Código: {t.codigo}</span> |{" "}
-                <span>🏫 Sala: {t.sala}</span>
+                <span> Código: {t.codigo}</span> |{" "}
+                <span> Sala: {t.sala}</span>
               </div>
 
               <div style={{ fontSize: "13px", marginTop: 4 }}>

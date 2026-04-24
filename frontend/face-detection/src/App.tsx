@@ -16,9 +16,15 @@ import TurmasList from "./pages/teacher/TurmasList";
 import TurmaDetalhe from "./pages/teacher/TurmaDetalhe";
 import TurmaForm from "./pages/teacher/TurmaForm";
 
-function ProtectedLayout({ children }: { children: React.ReactNode }) {
+function ProtectedLayout({
+  children,
+  role,
+}: {
+  children: React.ReactNode;
+  role?: "STUDENT" | "TEACHER";
+}) {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute role={role}>
       <>
         <Navbar />
         {children}
@@ -37,7 +43,14 @@ export default function App() {
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
 
-      <Route path="/cadastro" element={<CadastroAluno />} />
+      <Route
+  path="/cadastro"
+  element={
+    <ProtectedRoute role="STUDENT">
+      <CadastroAluno />
+    </ProtectedRoute>
+  }
+/>
 
       <Route
         path="/student"

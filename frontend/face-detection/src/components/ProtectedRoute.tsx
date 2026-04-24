@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 export default function ProtectedRoute({
   children,
@@ -8,6 +8,7 @@ export default function ProtectedRoute({
   role?: "STUDENT" | "TEACHER";
 }) {
   const user = JSON.parse(localStorage.getItem("user") || "null");
+  const location = useLocation();
 
   if (!user) {
     return <Navigate to="/login" />;
@@ -17,11 +18,21 @@ export default function ProtectedRoute({
     return <Navigate to="/login" />;
   }
 
-  // 🔥 REGRA PRINCIPAL
-  if (user.role === "STUDENT") {
-    if (!user.temCadastro) {
-      return <Navigate to="/cadastro" />;
-    }
+  // REGRA PARA ALUNO SEM CADASTRO
+  if (
+    user.role === "STUDENT" &&
+    !user.temCadastro &&
+    location.pathname !== "/cadastro"
+  ) {
+    return <Navigate to="/cadastro" />;
+  }
+
+  if (
+    user.role === "STUDENT" &&
+    user.temCadastro &&
+    location.pathname === "/cadastro"
+  ) {
+    return <Navigate to="/student" />;
   }
 
   return children;
