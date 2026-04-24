@@ -1,33 +1,61 @@
 import { useAuth } from "../context/AuthContext";
 import { Button } from "primereact/button";
-import { Menubar } from 'primereact/menubar';
+import { Menubar } from "primereact/menubar";
+import { useNavigate } from "react-router-dom";
 
 export const Navbar = () => {
-  const auth = useAuth();
-  const matricula = auth?.user;
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // 🔥 função dinâmica de navegação
+  const goHome = () => {
+    if (!user) return;
+
+    if (user.role === "STUDENT") {
+      navigate("/student");
+    } else if (user.role === "TEACHER") {
+      navigate("/teacher");
+    }
+  };
 
   const items = [
-    { label: 'Home', icon: 'pi pi-home', to: '/' },
-    { label: 'Turmas', icon: 'pi pi-users', to: '/turmas' },
+    {
+      label: "Home",
+      icon: "pi pi-home",
+      command: goHome, // 🔥 CORRIGIDO
+    },
+    ...(user?.role === "TEACHER"
+      ? [
+          {
+            label: "Turmas",
+            icon: "pi pi-users",
+            command: () => navigate("/turmas"),
+          },
+        ]
+      : []),
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login"); // 🔥 ESSENCIAL
+  };
 
   return (
     <div className="w-full">
       <Menubar
-        model={items.map(item => ({
-          ...item,
-          command: () => (window.location.href = item.to),
-        }))}
-
-        style={{ backgroundColor: '#120f24ff', padding: "0.8rem", borderRadius: 0 }}
-
+        model={items}
+        style={{
+          backgroundColor: "#120f24ff",
+          padding: "0.8rem",
+          borderRadius: 0,
+        }}
         end={
-          matricula ? (
+          user ? (
             <Button
               label="Sair"
               icon="pi pi-sign-out"
               className="p-button-danger p-button-outlined"
-              onClick={auth.logout}
+              onClick={handleLogout} // 🔥 CORRIGIDO
             />
           ) : null
         }
