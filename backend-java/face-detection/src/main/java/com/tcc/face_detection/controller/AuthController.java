@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tcc.face_detection.dto.LoginDTO;
 import com.tcc.face_detection.dto.LoginResponseDTO;
-import com.tcc.face_detection.model.AlunoSiga;
+import com.tcc.face_detection.model.UsuarioSiga;
 import com.tcc.face_detection.service.AuthService;
 
 @RestController

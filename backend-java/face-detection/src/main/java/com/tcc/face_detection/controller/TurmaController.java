@@ -35,8 +35,10 @@ public class TurmaController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TurmaResponseDTO> atualizar(@PathVariable Long id,
-                                                      @RequestBody TurmaDTO dto) {
+    public ResponseEntity<TurmaResponseDTO> atualizar(
+            @PathVariable Long id,
+            @RequestBody TurmaDTO dto) {
+
         return ResponseEntity.ok(turmaService.atualizar(id, dto));
     }
 
@@ -44,5 +46,19 @@ public class TurmaController {
     public ResponseEntity<String> deletar(@PathVariable Long id) {
         turmaService.deletar(id);
         return ResponseEntity.ok("Turma deletada com sucesso!");
+    }
+    
+    @PostMapping("/{turmaId}/alunos/{alunoId}")
+    public ResponseEntity<String> adicionarAluno(
+            @PathVariable Long turmaId,
+            @PathVariable Long alunoId) {
+
+        turmaService.adicionarAluno(turmaId, alunoId);
+        return ResponseEntity.ok("Aluno adicionado com sucesso!");
+    }
+
+    @GetMapping("/{id}/alunos")
+    public ResponseEntity<?> listarAlunos(@PathVariable Long id) {
+        return ResponseEntity.ok(turmaService.listarAlunos(id));
     }
 }

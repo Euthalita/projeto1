@@ -79,4 +79,9 @@ public class CadastroController {
                 "dados", alunoOpt.get()
         ));
     }
+
+    @GetMapping
+public ResponseEntity<?> listarAlunos() {
+    return ResponseEntity.ok(alunoService.listarTodos());
+}
 }

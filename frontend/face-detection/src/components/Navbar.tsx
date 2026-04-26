@@ -22,7 +22,7 @@ export const Navbar = () => {
     {
       label: "Home",
       icon: "pi pi-home",
-      command: goHome, // 🔥 CORRIGIDO
+      command: goHome, 
     },
     ...(user?.role === "TEACHER"
       ? [
@@ -37,7 +37,7 @@ export const Navbar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login"); // 🔥 ESSENCIAL
+    navigate("/login"); 
   };
 
   return (
@@ -55,7 +55,7 @@ export const Navbar = () => {
               label="Sair"
               icon="pi pi-sign-out"
               className="p-button-danger p-button-outlined"
-              onClick={handleLogout} // 🔥 CORRIGIDO
+              onClick={handleLogout} 
             />
           ) : null
         }

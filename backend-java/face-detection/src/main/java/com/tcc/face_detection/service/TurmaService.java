@@ -7,19 +7,26 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.tcc.face_detection.dto.AlunoDTO;
 import com.tcc.face_detection.dto.TurmaDTO;
 import com.tcc.face_detection.dto.TurmaResponseDTO;
-import com.tcc.face_detection.model.HorarioCaptura;
+//import com.tcc.face_detection.model.HorarioCaptura;
 import com.tcc.face_detection.model.Turma;
+import com.tcc.face_detection.model.AlunoCadastro;
+import com.tcc.face_detection.model.Periodo;
+import com.tcc.face_detection.repository.AlunoCadastroRepository;
 import com.tcc.face_detection.repository.TurmaRepository;
 
 @Service
 public class TurmaService {
 
     private final TurmaRepository turmaRepository;
+    private final AlunoCadastroRepository alunoRepository;
 
-    public TurmaService(TurmaRepository turmaRepository) {
+    public TurmaService(TurmaRepository turmaRepository,
+                        AlunoCadastroRepository alunoRepository) {
         this.turmaRepository = turmaRepository;
+        this.alunoRepository = alunoRepository;
     }
 
     // CRIAR
@@ -31,8 +38,12 @@ public class TurmaService {
         turma.setProfessor(dto.getProfessor());
         turma.setSemestre(dto.getSemestre());
         turma.setSala(dto.getSala());
+        turma.setPeriodo(dto.getPeriodo());
+        
+        turma.setAlunos(new ArrayList<>());
 
-        List<HorarioCaptura> listaHorarios = new ArrayList<>();
+
+       /*  List<HorarioCaptura> listaHorarios = new ArrayList<>();
 
         if (dto.getHorariosCaptura() != null) {
             for (String horarioStr : dto.getHorariosCaptura()) {
@@ -50,7 +61,7 @@ public class TurmaService {
         }
 
         turma.setHorariosCaptura(listaHorarios);
-
+*/
         Turma salva = turmaRepository.save(turma);
 
         return converterParaResponseDTO(salva);
@@ -67,7 +78,6 @@ public class TurmaService {
 
     // BUSCAR POR ID
     public TurmaResponseDTO buscarPorId(Long id) {
-
         Turma turma = turmaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Turma não encontrada!"));
 
@@ -85,8 +95,9 @@ public class TurmaService {
         turma.setProfessor(dto.getProfessor());
         turma.setSemestre(dto.getSemestre());
         turma.setSala(dto.getSala());
+        turma.setPeriodo(dto.getPeriodo());
 
-        turma.getHorariosCaptura().clear();
+        /*turma.getHorariosCaptura().clear();
 
         if (dto.getHorariosCaptura() != null) {
             for (String horarioStr : dto.getHorariosCaptura()) {
@@ -103,7 +114,7 @@ public class TurmaService {
                 turma.getHorariosCaptura().add(horario);
             }
         }
-
+*/
         Turma atualizada = turmaRepository.save(turma);
 
         return converterParaResponseDTO(atualizada);
@@ -118,6 +129,40 @@ public class TurmaService {
         turmaRepository.delete(turma);
     }
 
+     public void adicionarAluno(Long turmaId, Long alunoId) {
+
+        Turma turma = turmaRepository.findById(turmaId)
+                .orElseThrow(() -> new RuntimeException("Turma não encontrada"));
+
+        AlunoCadastro aluno = alunoRepository.findById(alunoId)
+                .orElseThrow(() -> new RuntimeException("Aluno não encontrado"));
+
+        if (!"STUDENT".equalsIgnoreCase(aluno.getRole())) {
+            throw new RuntimeException("Somente alunos podem ser adicionados à turma");
+        }
+
+        boolean jaExiste = turma.getAlunos()
+                .stream()
+                .anyMatch(a -> a.getId().equals(alunoId));
+
+        if (jaExiste) {
+            throw new RuntimeException("Aluno já está na turma");
+        }
+
+        turma.getAlunos().add(aluno);
+
+        turmaRepository.save(turma);
+    }
+
+    public List<AlunoCadastro> listarAlunos(Long turmaId) {
+
+        Turma turma = turmaRepository.findById(turmaId)
+                .orElseThrow(() -> new RuntimeException("Turma não encontrada"));
+
+        return turma.getAlunos();
+    }
+
+
     // MÉTODO PRIVADO PARA CONVERSÃO
     private TurmaResponseDTO converterParaResponseDTO(Turma turma) {
 
@@ -129,15 +174,31 @@ public class TurmaService {
         response.setProfessor(turma.getProfessor());
         response.setSemestre(turma.getSemestre());
         response.setSala(turma.getSala());
+        response.setPeriodo(turma.getPeriodo());
 
-        if (turma.getHorariosCaptura() != null) {
+        if (turma.getAlunos() != null) {
+        response.setAlunos(
+            turma.getAlunos()
+                .stream()
+                .map(a -> new AlunoDTO(
+                        a.getId(),
+                        a.getNome(),
+                        a.getMatricula()
+                ))
+                .toList()
+        );
+        }
+
+       /* if (turma.getHorariosCaptura() != null) {
             response.setHorariosCaptura(
                     turma.getHorariosCaptura()
                             .stream()
                             .map(h -> h.getHorario().toString())
                             .collect(Collectors.toList()));
         }
-
+*/
         return response;
-    }
+   }
+
+   
 }

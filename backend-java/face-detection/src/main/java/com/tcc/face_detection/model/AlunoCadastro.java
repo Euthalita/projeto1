@@ -1,9 +1,14 @@
 package com.tcc.face_detection.model;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -19,10 +24,15 @@ public class AlunoCadastro {
 
     @Column(unique = true, nullable = false)
     private String email;
+
+    @JsonIgnore
+    @ManyToMany(mappedBy = "alunos")
+    private List<Turma> turmas;
     
     private String nome;
     private String foto;  // caminho da foto salva em /uploads/fotos/
     private String role;  // "STUDENT" ou "TEACHER"
+    
 
     public Long getId() {
         return id;

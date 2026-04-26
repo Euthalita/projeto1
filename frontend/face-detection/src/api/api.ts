@@ -11,7 +11,7 @@ export const api = axios.create({
 });
 
 // REQUEST
-api.interceptors.request.use(
+/*api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
 
@@ -23,7 +23,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
-);
+);*/
 
 // RESPONSE
 api.interceptors.response.use(

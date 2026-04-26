@@ -3,13 +3,7 @@ package com.tcc.face_detection.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "turmas")
@@ -23,9 +17,18 @@ public class Turma {
     private String nome;       // nome da disciplina
     private String professor;
     private String semestre;   // 2025/1
-    private String sala;       
-    @OneToMany(mappedBy = "turma", cascade = CascadeType.ALL, orphanRemoval = true)
-private List<HorarioCaptura> horariosCaptura = new ArrayList<>();
+    private String sala;
+
+    @Enumerated(EnumType.STRING)
+    private Periodo periodo;
+
+    @ManyToMany
+    @JoinTable(
+        name = "turma_aluno",
+        joinColumns = @JoinColumn(name = "turma_id"),
+        inverseJoinColumns = @JoinColumn(name = "aluno_id")
+    )
+    private List<AlunoCadastro> alunos = new ArrayList<>();
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -45,6 +48,9 @@ private List<HorarioCaptura> horariosCaptura = new ArrayList<>();
     public String getSala() { return sala; }
     public void setSala(String sala) { this.sala = sala; }
 
-    public List<HorarioCaptura> getHorariosCaptura() { return horariosCaptura; }
-    public void setHorariosCaptura(List<HorarioCaptura> horariosCaptura) { this.horariosCaptura = horariosCaptura; }
+    public Periodo getPeriodo() { return periodo; }
+    public void setPeriodo(Periodo periodo) { this.periodo = periodo; }
+
+    public List<AlunoCadastro> getAlunos() { return alunos; }
+    public void setAlunos(List<AlunoCadastro> alunos) { this.alunos = alunos; }
 }

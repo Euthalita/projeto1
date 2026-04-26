@@ -1,5 +1,6 @@
 package com.tcc.face_detection.dto;
 
+import com.tcc.face_detection.model.Periodo;
 import java.util.List;
 
 public class TurmaResponseDTO {
@@ -10,10 +11,11 @@ public class TurmaResponseDTO {
     private String professor;
     private String semestre;
     private String sala;
+    private Periodo periodo;
 
-    private List<String> horariosCaptura;
+    private List<AlunoDTO> alunos;
+    //private List<String> horariosCaptura;
 
-    // getters e setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -32,6 +34,12 @@ public class TurmaResponseDTO {
     public String getSala() { return sala; }
     public void setSala(String sala) { this.sala = sala; }
 
-    public List<String> getHorariosCaptura() { return horariosCaptura; }
-    public void setHorariosCaptura(List<String> horariosCaptura) { this.horariosCaptura = horariosCaptura; }
+    public Periodo getPeriodo() { return periodo; }
+    public void setPeriodo(Periodo periodo) { this.periodo = periodo; }
+
+    public List<AlunoDTO> getAlunos() { return alunos; }
+    public void setAlunos(List<AlunoDTO> alunos) { this.alunos = alunos; }
+
+    //public List<String> getHorariosCaptura() { return horariosCaptura; }
+    //public void setHorariosCaptura(List<String> horariosCaptura) { this.horariosCaptura = horariosCaptura; }
 }

@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,21 +14,24 @@ import org.springframework.stereotype.Service;
 
 import com.tcc.face_detection.dto.CadastroDTO;
 import com.tcc.face_detection.model.AlunoCadastro;
-import com.tcc.face_detection.model.AlunoSiga;
+import com.tcc.face_detection.model.UsuarioSiga;
 import com.tcc.face_detection.repository.AlunoCadastroRepository;
-import com.tcc.face_detection.repository.AlunoSigaRepository;
+import com.tcc.face_detection.repository.UsuarioSigaRepository;
+import com.tcc.face_detection.repository.AlunoRepository;
+import com.tcc.face_detection.repository.TurmaAlunoRepository;
+import com.tcc.face_detection.repository.TurmaRepository;
 
 @Service
 public class AlunoService {
 
-    private final AlunoSigaRepository alunoSigaRepository;
+    private final UsuarioSigaRepository usuarioSigaRepository;
     private final AlunoCadastroRepository alunoCadastroRepository;
 
     private static final String UPLOAD_DIR = "uploads/fotos/";
 
-    public AlunoService(AlunoSigaRepository alunoSigaRepository,
+    public AlunoService(UsuarioSigaRepository usuarioSigaRepository,
                         AlunoCadastroRepository alunoCadastroRepository) {
-        this.alunoSigaRepository = alunoSigaRepository;
+        this.usuarioSigaRepository = usuarioSigaRepository;
         this.alunoCadastroRepository = alunoCadastroRepository;
     }
 
@@ -47,24 +51,24 @@ public class AlunoService {
         }
 
         // BUSCA NO SIGA
-        AlunoSiga alunoSiga = alunoSigaRepository.findByEmail(dto.getEmail())
+        UsuarioSiga usuarioSiga = usuarioSigaRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> new RuntimeException("Email não encontrado no SIGA"));
 
         // DEBUG (opcional - pode remover depois)
-        System.out.println("ROLE vinda do SIGA: " + alunoSiga.getRole());
+        System.out.println("ROLE vinda do SIGA: " + usuarioSiga.getRole());
 
         // VALIDA SE É ALUNO (com normalização)
-        if (!isStudent(alunoSiga.getRole())) {
+        if (!isStudent(usuarioSiga.getRole())) {
             throw new RuntimeException("Apenas alunos podem se cadastrar");
         }
 
         // VALIDA NOME
-        if (!alunoSiga.getNome().equalsIgnoreCase(dto.getNome())) {
+        if (!usuarioSiga.getNome().equalsIgnoreCase(dto.getNome())) {
             throw new RuntimeException("Nome não confere com o SIGA");
         }
 
         // VALIDA MATRÍCULA
-        if (!alunoSiga.getMatricula().equals(dto.getMatricula())) {
+        if (!usuarioSiga.getMatricula().equals(dto.getMatricula())) {
             throw new RuntimeException("Matrícula não confere com o SIGA");
         }
 
@@ -116,5 +120,9 @@ public class AlunoService {
 
     public Optional<AlunoCadastro> findByEmail(String email) {
         return alunoCadastroRepository.findByEmail(email);
+    }
+
+    public List<AlunoCadastro> listarTodos() {
+        return alunoCadastroRepository.findAll();
     }
 }

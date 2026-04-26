@@ -96,16 +96,6 @@ export default function TeacherHome() {
                   }}
                 />
 
-                <Button
-                  label="Chamada"
-                  severity="success"
-                  size="small"
-                  style={{ marginLeft: 8 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/chamada?classId=${t.id}`);
-                  }}
-                />
               </div>
             </div>
           ))

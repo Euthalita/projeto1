@@ -18,6 +18,8 @@ export default function TurmaDetalhe() {
   const [alunos, setAlunos] = useState<any[]>([]);
   const [todosAlunos, setTodosAlunos] = useState<any[]>([]);
   const [aulaAtiva, setAulaAtiva] = useState(false);
+  const [loadingAlunoId, setLoadingAlunoId] = useState<number | null>(null);
+  const [loadingAula, setLoadingAula] = useState(false);
 
   const loadTurma = async () => {
     const { data } = await buscarTurma(Number(id));
@@ -40,12 +42,16 @@ export default function TurmaDetalhe() {
   };
 
   const loadAll = async () => {
-    await Promise.all([
-      loadTurma(),
-      loadAlunos(),
-      loadTodosAlunos(),
-      loadStatus()
-    ]);
+    try {
+      await Promise.all([
+        loadTurma(),
+        loadAlunos(),
+        loadTodosAlunos(),
+        loadStatus()
+      ]);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    }
   };
 
   useEffect(() => {
@@ -53,19 +59,50 @@ export default function TurmaDetalhe() {
   }, [id]);
 
   const handleAddAluno = async (studentId: number) => {
-    await adicionarAlunoNaTurma(Number(id), studentId);
-    loadAlunos();
+    try {
+      setLoadingAlunoId(studentId);
+
+      await adicionarAlunoNaTurma(Number(id), studentId);
+
+      // Atualiza lista de alunos da turma
+      await loadAlunos();
+
+    } catch (error) {
+      console.error("Erro ao adicionar aluno:", error);
+      alert("Erro ao adicionar aluno");
+    } finally {
+      setLoadingAlunoId(null);
+    }
   };
 
   const handleStart = async () => {
-    await iniciarAula(Number(id));
-    setAulaAtiva(true);
+    try {
+      setLoadingAula(true);
+      await iniciarAula(Number(id));
+      await loadStatus(); // 🔥 sincroniza com backend
+    } catch (error) {
+      console.error("Erro ao iniciar aula:", error);
+    } finally {
+      setLoadingAula(false);
+    }
   };
 
-  const handleEnd = async () => {
-    await finalizarAula(Number(id));
-    setAulaAtiva(false);
+const handleEnd = async () => {
+    try {
+      setLoadingAula(true);
+      await finalizarAula(Number(id));
+      await loadStatus(); // 🔥 sincroniza com backend
+    } catch (error) {
+      console.error("Erro ao finalizar aula:", error);
+    } finally {
+      setLoadingAula(false);
+    }
   };
+
+  // 🔥 FILTRO: remove alunos já matriculados
+  const alunosDisponiveis = todosAlunos.filter(
+    (a) => !alunos.some((aluno) => aluno.id === a.id)
+  );
 
   if (!turma) return <div style={{ color: "#fff" }}>Carregando...</div>;
 
@@ -93,12 +130,14 @@ export default function TurmaDetalhe() {
             <Button
               label="Iniciar Chamada"
               severity="success"
+              loading={loadingAula}
               onClick={handleStart}
             />
           ) : (
             <Button
               label="Finalizar Chamada"
               severity="danger"
+              loading={loadingAula}
               onClick={handleEnd}
             />
           )}
@@ -125,19 +164,29 @@ export default function TurmaDetalhe() {
           ))
         )}
 
+        {/* ADICIONAR ALUNO */}
         <h3 style={{ marginTop: 20 }}>Adicionar aluno</h3>
 
-        {todosAlunos.map((a) => (
-          <div key={a.id} style={{ marginBottom: 6 }}>
-            {a.nome}
-            <Button
-              label="Adicionar"
-              size="small"
-              style={{ marginLeft: 10 }}
-              onClick={() => handleAddAluno(a.id)}
-            />
-          </div>
-        ))}
+        {alunosDisponiveis.length === 0 ? (
+          <p>Todos os alunos já estão na turma</p>
+        ) : (
+          alunosDisponiveis.map((a) => (
+            <div key={a.id} style={{ marginBottom: 6 }}>
+              {a.nome}
+
+              <Button
+                label="Adicionar"
+                size="small"
+                loading={loadingAlunoId === a.id}
+                disabled={loadingAlunoId !== null}
+                style={{ marginLeft: 10 }}
+                onClick={() => handleAddAluno(a.id)}
+              />
+            </div>
+
+            
+          ))
+        )}
       </div>
     </div>
   );
